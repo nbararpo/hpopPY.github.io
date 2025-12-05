@@ -1,0 +1,105 @@
+---
+title: "hPOP_Clustering"
+author: "Nasim Bararpour"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+rm(list = ls())
+dataExPheno<-read.csv(
+"~/Cluster3/dataExPheno.csv") # expression data for Pattern 3 and 4 molecules 
+
+```
+
+
+```{r}
+# Example of checking for and handling NA/NaN/Inf values in 'y'
+df <- na.omit(dExPheno)  # Removing rows with NA values in any column
+df <- df[!is.infinite(df$longevity), ]  # Removing rows where 'y' is Inf
+df <- df[!is.nan(df$longevity), ]  # Removing rows where 'y' is NaN
+
+# Example of converting factors mistakenly treated as numeric
+# Only do this if the operation is meaningful for your analysis
+if(is.factor(df[14:308])) {
+  df[14:308]<- as.numeric(as.character(df[14:308]))
+}
+```
+
+#Filter data
+```{r}
+#unique(dExBioPheno$ethRes)
+
+library(tidyverse)
+metab_df  <- dataExPheno %>% filter(area %in%  c("CaucNA","CUC","CEu","CAust","CUk","CsAf","CBrz",
+                                                  "AsiaNA","AUC",
+                                              "AA","AAust","AEu")) #df
+
+
+name<- data.frame(name=colnames(metab_df))
+```
+
+
+#cluster 3 #lm model
+```{r}
+# Load necessary library
+## exclude microbiota because low overlapping samples
+
+
+
+library(dplyr)
+library(lmerTest)
+library(lme4)
+
+dxx<- metab_df[-c(309:356)]
+# Initialize an empty data frame to store results
+results <- data.frame(
+  Variable = character(),
+  Coefficient = numeric(),
+  p_value=numeric(),
+  AdjPValue = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop through the variables in the specified range
+for (i in 14:308) {
+  options(max.print=999999)
+set.seed(100)
+  variable_name <- names(dxx)[i]
+  
+  # Dynamically constructing the formula as a string
+  formula_str_03 <- paste("deltaAge ~", variable_name, "+ as.factor(Sex) + as.factor(Ethnic) + bmi")
+  model_03 <- lm(as.formula(formula_str_03), data = dxx)
+  
+  formula_str_003 <- "deltaAge ~ as.factor(Sex) +  as.factor(Ethnic) + bmi"
+  model_003 <- lm(as.formula(formula_str_003), data = dxx)
+  
+  # Perform ANOVA comparison
+  anova_result <- anova(model_03, model_003)
+  
+  # Extract the p-value from ANOVA comparison
+  p_value <- anova_result$`Pr(>F)`[2] # Get the p-value of the variable
+  
+  # Extract the coefficient of the variable from the full model
+  coefficient <- summary(model_03)$coefficients[variable_name, "Estimate"]
+  
+  # Adjust the p-value (Bonferroni correction)
+  adj_p_value <- p.adjust(p_value, method = "bonferroni", n = 343) # 343 is the number of tests
+  
+  # Store the results in the data frame
+  results <- results %>%
+    add_row(
+      Variable = variable_name,
+      Coefficient = coefficient,
+      p_value=p_value,
+      AdjPValue = adj_p_value
+    )
+}
+
+# Print or save the results
+print(results)
+write.csv(results,"/Users/nasimbararpour/Library/CloudStorage/Box-Box/NasimBararpour/hPOP/Data_Snyder/DataMining/PhenoAge_Clusters/Cluster3/phenoAgecluster3V2.csv")
+
+```
+
+
