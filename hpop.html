@@ -753,24 +753,24 @@ def main():
                 st.markdown('<p class="panel-header">Main Figures (Manuscript)</p>', unsafe_allow_html=True)
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    st.subheader("Figure B - Sex Distribution")
+                    st.subheader("Sex Distribution")
                     fig_sex = plot_sex_count(data)
                     if fig_sex:
                         st.pyplot(fig_sex)
                 with col2:
-                    st.subheader("Figure C - Age by Site")
+                    st.subheader("Age by Site")
                     fig_age_site = plot_age_by_site(data)
                     if fig_age_site:
                         st.pyplot(fig_age_site)
                 st.markdown("---")
                 col3, col4 = st.columns(2)
                 with col3:
-                    st.subheader("Figure D - BMI Category")
+                    st.subheader("F BMI Category")
                     fig_bmi = plot_bmi_category(data)
                     if fig_bmi:
                         st.pyplot(fig_bmi)
                 with col4:
-                    st.subheader("Figure E - Ethnicity")
+                    st.subheader("Ethnicity")
                     fig_eth = plot_ethnicity(data)
                     if fig_eth:
                         st.pyplot(fig_eth)
@@ -1012,92 +1012,167 @@ def main():
                     st.warning("Residential Area data not available")
         
         # ===== TAB 2: ETHNICITY ANALYSIS =====
+        # ===== TAB 2: ETHNICITY ANALYSIS =====
         with tab2:
             st.markdown('<p class="tab-header">Ethnicity Analysis</p>', unsafe_allow_html=True)
+            st.write("Comprehensive ethnicity-based patterns: Demographics and Metabolomics")
+            
+            # Create sub-tabs
             ethnic_tab1, ethnic_tab2 = st.tabs([
-                "📊 Demographic Patterns",
-                "🧬 Metabolomics Pathways (Fig 3A)"
+                "📊 Metabolomics Pathways Main Fig 3A",
+                " Metabolomics Pathways Interactive"
             ])
             
+            # ===== SUB-TAB 1: DEMOGRAPHIC PATTERNS =====
             with ethnic_tab1:
-                st.subheader("Demographics by Ethnicity")
+                st.subheader("Metabolomics Pathways Main Fig 3A")
+                st.write("Explore demographic distributions across ethnic groups")
+                
                 st.markdown("---")
-                st.subheader("BMI by Ethnicity")
-                fig = plot_bmi_by_ethnicity(data)
-                if fig:
-                    st.pyplot(fig)
+                
+                # Use the direct image URL if the original link does not work
+                github_Fig = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig.3A.jpg"
+                st.image(github_Fig, caption="Metabolomics Pathways - Fig 3A", use_column_width=True)
+                st.write("A) Functional annotation of differentially abundant metabolomics and lipidomics data. Each row represents ethnic-related significantly altered metabolites and lipids. Functional annotations are shown in the right sides of the plots, using both in-house libraries and supported by literature references (see STAR Methods). Each circle represents pathway associated molecules' fold-change (color of dot) and significance (size of dot). For several lipid classes such as sphingolipids, phospholipids, and glycerolipids, sum of abundance levels of multiple species are shown. In fact, differential lipids species were called for across ethnic groups with down- and up-regulated molecules separately and then averaged (see Figure S3 for extended lipid patterns).  Up-regulated and down-regulated molecules for each contrast (i.e.EuAn/EA and SA/EA) are shown in red and blue respectively, with intensity determined by the log2 fold change. The size of each dot represents the molecule -log10(BH p-value)  where the larger the dot, the more significant the differential regulation. Only molecules with p-value < 0.01 and BH p-value < 0.2 are considered. ")
+
                 st.markdown("---")
-                st.subheader("Age by Ethnicity")
-                fig = plot_age_by_ethnicity(data)
-                if fig:
-                    st.pyplot(fig)
-                st.markdown("---")
-                st.subheader("Site by Ethnicity")
-                fig = plot_site_by_ethnicity(data)
-                if fig:
-                    st.pyplot(fig)
             
+            # ===== SUB-TAB 2: METABOLOMICS PATHWAYS (IMPROVED) =====
             with ethnic_tab2:
-                st.subheader("🧬 Metabolomics Pathway Analysis")
-                with st.spinner("Loading pathway data..."):
+                st.subheader(" Metabolomics Pathways Interactive")
+                st.write("Plasma metabolite pathway analysis across ethnic groups")
+                
+                st.markdown("---")
+                
+                # Load pathway data
+                with st.spinner("Loading metabolomics pathway data..."):
                     dataA, dataB, dataC, dataS, lipid_df, full_df = load_pathway_data()
                 
                 if full_df is not None and not full_df.empty:
-                    st.success(f"✅ Loaded {len(full_df)} records")
+                    st.success(f"✅ Loaded {len(full_df)} pathway records")
                     
-                    with st.expander("🔍 View & Filter Data"):
+                    # ===== DATA PREVIEW SECTION (IMPROVED) =====
+                    with st.expander("🔍 View & Filter Pathway Data"):
+                        st.markdown("### Data Preview and Filtering")
+                        
+                        # Dataset info
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Records", len(full_df))
+                            st.metric("Total Records", len(full_df))
                         with col2:
-                            st.metric("Metabolites", full_df['name'].nunique() if 'name' in full_df.columns else 0)
+                            st.metric("Unique Metabolites", full_df['name'].nunique() if 'name' in full_df.columns else 0)
                         with col3:
-                            st.metric("Pathways", full_df['Pathway.Name'].nunique() if 'Pathway.Name' in full_df.columns else 0)
+                            st.metric("Unique Pathways", full_df['Pathway.Name'].nunique() if 'Pathway.Name' in full_df.columns else 0)
+                        
                         st.markdown("---")
                         
+                        # Filtering options
+                        st.markdown("#### Filter Options")
+                        
                         filter_col1, filter_col2 = st.columns(2)
+                        
                         with filter_col1:
+                            # Filter by contrast
                             if 'contrast' in full_df.columns:
                                 contrasts = ['All'] + sorted(full_df['contrast'].unique().tolist())
-                                selected_contrast = st.selectbox("Filter by Contrast", contrasts)
-                                filtered_df = full_df if selected_contrast == 'All' else full_df[full_df['contrast'] == selected_contrast]
+                                selected_contrast = st.selectbox("Filter by Contrast:", contrasts)
+                                if selected_contrast != 'All':
+                                    filtered_df = full_df[full_df['contrast'] == selected_contrast]
+                                else:
+                                    filtered_df = full_df.copy()
                             else:
                                 filtered_df = full_df.copy()
+                        
                         with filter_col2:
+                            # Filter by pathway
                             if 'Pathway.Name' in full_df.columns:
                                 pathways = ['All'] + sorted(full_df['Pathway.Name'].unique().tolist())
-                                selected_pathway = st.selectbox("Filter by Pathway", pathways)
+                                selected_pathway = st.selectbox("Filter by Pathway:", pathways)
                                 if selected_pathway != 'All':
                                     filtered_df = filtered_df[filtered_df['Pathway.Name'] == selected_pathway]
                         
-                        n_rows = st.slider("Rows to display", 10, 100, 20)
+                        st.markdown("---")
+                        
+                        # Number of rows to display
+                        n_rows = st.slider("Number of rows to display:", 10, 100, 20)
+                        
+                        # Display filtered data
+                        st.markdown(f"**Showing {min(n_rows, len(filtered_df))} of {len(filtered_df)} filtered records:**")
                         st.dataframe(filtered_df.head(n_rows), use_container_width=True)
                         
+                        # Column information
+                        if st.checkbox("Show column details"):
+                            st.markdown("**Column Information:**")
+                            col_info = pd.DataFrame({
+                                'Column': full_df.columns,
+                                'Type': full_df.dtypes,
+                                'Non-Null': full_df.count(),
+                                'Unique Values': full_df.nunique()
+                            })
+                            st.dataframe(col_info, use_container_width=True)
+                        
+                        # Download options
+                        st.markdown("---")
+                        st.markdown("#### Download Data")
+                        
                         download_col1, download_col2 = st.columns(2)
+                        
                         with download_col1:
+                            # Download full dataset
                             csv_full = full_df.to_csv(index=False)
-                            st.download_button("📥 Download Full", csv_full, "pathways_full.csv", "text/csv")
+                            st.download_button(
+                                label="📥 Download Full Dataset (CSV)",
+                                data=csv_full,
+                                file_name="hpop_pathways_full.csv",
+                                mime="text/csv"
+                            )
+                        
                         with download_col2:
+                            # Download filtered dataset
                             csv_filtered = filtered_df.to_csv(index=False)
-                            st.download_button("📥 Download Filtered", csv_filtered, "pathways_filtered.csv", "text/csv")
+                            st.download_button(
+                                label="📥 Download Filtered Data (CSV)",
+                                data=csv_filtered,
+                                file_name="hpop_pathways_filtered.csv",
+                                mime="text/csv"
+                            )
                     
                     st.markdown("---")
+                    
+                    # ===== VISUALIZATION SECTION =====
                     st.markdown("### Pathway Visualizations")
-                    viz_type = st.radio("Visualization type:", ["Interactive (Plotly)", "Static (Matplotlib)"], horizontal=True)
+                    
+                    # Visualization type selector
+                    viz_type = st.radio(
+                        "Select visualization type:",
+                        ["Interactive (Plotly)", "Static (Matplotlib)"],
+                        horizontal=True
+                    )
+                    
                     st.markdown("---")
+                    
+                    # Category selection
+                    st.markdown("#### Select Pathway Category to Visualize")
                     
                     category_options = {
                         "🔬 Amino Acids and Energy": dataA,
                         "🧬 Nucleotides": dataB,
-                        "🦠 Microbiome-Derived": dataC,
+                        "🦠 Microbiome-Derived Metabolites": dataC,
                         "🧪 Bile and Sterol": dataS,
                         "🫧 Lipid Metabolism": lipid_df
                     }
-                    selected_category = st.selectbox("Choose category:", list(category_options.keys()))
+                    
+                    selected_category = st.selectbox(
+                        "Choose a metabolic category:",
+                        list(category_options.keys())
+                    )
+                    
                     selected_data = category_options[selected_category]
                     
                     if selected_data is not None and not selected_data.empty:
                         st.markdown(f'<p class="pathway-category">{selected_category}</p>', unsafe_allow_html=True)
+                        
+                        # Show category statistics
                         col1, col2, col3 = st.columns(3)
                         with col1:
                             st.metric("Metabolites", selected_data['name'].nunique())
@@ -1105,38 +1180,69 @@ def main():
                             st.metric("Pathways", selected_data['Pathway.Name'].nunique())
                         with col3:
                             st.metric("Comparisons", len(selected_data))
+                        
                         st.markdown("---")
                         
+                        # Generate visualization
                         if viz_type == "Interactive (Plotly)":
-                            fig = plot_pathway_bubble_interactive(selected_data, title=f"{selected_category}")
+                            fig = plot_pathway_bubble_interactive(
+                                selected_data, 
+                                title=f"{selected_category} - Pathway Analysis"
+                            )
                             if fig:
                                 st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.warning("Could not generate interactive plot")
                         else:
-                            fig = plot_pathway_bubble(selected_data, title=f"{selected_category}")
+                            fig = plot_pathway_bubble(
+                                selected_data, 
+                                title=f"{selected_category} - Pathway Analysis"
+                            )
                             if fig:
                                 st.pyplot(fig)
+                            else:
+                                st.warning("Could not generate static plot")
                         
-                        if st.checkbox("Show pathway names"):
+                        # Show pathway list
+                        if st.checkbox("Show pathway names in this category"):
                             pathways_in_category = selected_data['Pathway.Name'].unique()
                             st.write(f"**Pathways ({len(pathways_in_category)}):**")
                             for i, pathway in enumerate(sorted(pathways_in_category), 1):
                                 st.write(f"{i}. {pathway}")
+                    
+                    else:
+                        st.info("No data available for the selected category")
+                
                 else:
-                    st.error("Failed to load pathway data")
+                    st.error("Failed to load pathway data. Please check the GitHub URL and file format.")
+                    st.info("Ensure Table S3.xlsx exists in the repository with sheet: 3D_PathwayAnnotation_plasma")
         
         # ===== TAB 3: AGING ANALYSIS =====
         with tab3:
             st.markdown('<p class="tab-header">Aging Analysis</p>', unsafe_allow_html=True)
+            st.write("Age-related patterns and distributions")
+            
             st.subheader("📊 PhenoAge Analysis")
-            st.info("PhenoAge analysis features displayed when data available")
+            st.info("PhenoAge analysis features will be displayed here when data is available")
+            
+            # Check for phenoage-related columns
             phenoage_cols = [col for col in data.columns if 'pheno' in col.lower() or 'age' in col.lower()]
             if phenoage_cols:
-                st.write("Available columns:", phenoage_cols)
-                selected_age_col = st.selectbox("Select variable", phenoage_cols)
+                st.write("Available age-related columns:")
+                st.write(phenoage_cols)
+                
+                selected_age_col = st.selectbox("Select age variable", phenoage_cols)
+                
                 if selected_age_col:
                     fig = plot_factor_distribution(data, selected_age_col)
                     if fig:
                         st.pyplot(fig)
+            
+            st.markdown("---")
+            
+            st.subheader("📊 Delta Age Analysis")
+            st.info("Delta Age analysis features will be displayed here when data is available")
+            
             st.markdown("---")
             st.subheader("Age Category Distribution")
             fig = plot_age_by_site(data)
@@ -1145,6 +1251,7 @@ def main():
     
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        st.info("Please check the GitHub URL and ensure the file is accessible.")
 
 
 if __name__ == '__main__':
