@@ -603,7 +603,7 @@ def plot_pathway_bubble(data, title="Pathway Analysis", figsize=(10, 12)):
         data["contrast"],
         data["name"],
         c=data["avg_log2fc"],
-        s=np.clip(data["lpBH"], 0.1, None) * 25,
+        s=np.clip(data["lpBH"], 0.5, None) * 10,
         cmap="coolwarm",
         vmin=-0.6,
         vmax=0.6,
@@ -644,7 +644,7 @@ def plot_pathway_bubble_interactive(data, title="Pathway Analysis"):
             y=dff["name"],
             mode="markers",
             marker=dict(
-                size=np.clip(dff["lpBH"], 0.1, None) * 3,
+                size=np.clip(dff["lpBH"], 0.5, None) * 10,
                 color=dff["avg_log2fc"],
                 colorscale="RdBu",
                 cmin=-0.6,
