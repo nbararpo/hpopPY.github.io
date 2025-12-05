@@ -1024,15 +1024,18 @@ def main():
             
             # ===== SUB-TAB 1: DEMOGRAPHIC PATTERNS =====
             with ethnic_tab1:
-                st.subheader("Metabolomics Pathways Main Fig 3A")
-                st.write("Explore demographic distributions across ethnic groups")
+                st.subheader("Pathway analysis Main Fig  3A,B")
+                st.write("Ethnicity-Associated Functional Annotation of Metabolites, Lipids, Genes, and Proteins")
                 
                 st.markdown("---")
                 
                 # Use the direct image URL if the original link does not work
                 github_Fig = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig.3A.jpg"
                 st.image(github_Fig, caption="Metabolomics Pathways - Fig 3A", use_column_width=True)
-                st.write("A) Functional annotation of differentially abundant metabolomics and lipidomics data. Each row represents ethnic-related significantly altered metabolites and lipids. Functional annotations are shown in the right sides of the plots, using both in-house libraries and supported by literature references (see STAR Methods). Each circle represents pathway associated molecules' fold-change (color of dot) and significance (size of dot). For several lipid classes such as sphingolipids, phospholipids, and glycerolipids, sum of abundance levels of multiple species are shown. In fact, differential lipids species were called for across ethnic groups with down- and up-regulated molecules separately and then averaged (see Figure S3 for extended lipid patterns).  Up-regulated and down-regulated molecules for each contrast (i.e.EuAn/EA and SA/EA) are shown in red and blue respectively, with intensity determined by the log2 fold change. The size of each dot represents the molecule -log10(BH p-value)  where the larger the dot, the more significant the differential regulation. Only molecules with p-value < 0.01 and BH p-value < 0.2 are considered. ")
+                st.write("A) Functional annotation of differentially abundant metabolomics and lipidomics data. Each row represents ethnic-related significantly altered metabolites and lipids. Functional annotations are shown in the right sides of the plots, using both in-house libraries and supported by literature references (see STAR Methods). Each circle represents pathway associated molecules' fold-change (color of dot) and significance (size of dot). For several lipid classes such as sphingolipids, phospholipids, and glycerolipids, sum of abundance levels of multiple species are shown. In fact, differential lipids species were called for across ethnic groups with down- and up-regulated molecules separately and then averaged (see Figure S3 for extended lipid patterns).  Up-regulated and down-regulated molecules for each contrast (i.e.EuAn/EA and SA/EA) are shown in red and blue respectively, with intensity determined by the log2 fold change. The size of each dot represents the molecule -log10(BH p-value)  where the larger the dot, the more significant the differential regulation. Only molecules with p-value < 0.01 and BH p-value < 0.2 are considered.Abbreviations: Cholesterol ester(CE), Sphingolipid (SM), Phosphatidylcholine (PC), Phosphatidylethanolamine (PE), Lysophosphatidylethanolamine (LPE), Lysophosphatidylcholine (LPC), Triacylglycerols (TAG), Diacylglycerols (DAG), Saturated Fatty Acid (SFA), Polyunsaturated fatty acid (PUFA), Monounsaturated fatty acid (MUFA), His-Ile (Histidine-Isoleucine). ")
+                github_Fig = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig.3B.jpg"
+                st.image(github_Fig, caption="Metabolomics Pathways - Fig 3A", use_column_width=True)
+                st.write("B) Pathway enrichments run for differentially abundant molecules. Enrichment analysis for the transcriptome and proteome (separately) were performed using String and ConsensusPathDB-human. Up/down regulated molecules were enriched separately. Each dot indicates an enrichment of a pathway for a particular omic; its size indicates the -log10 FDR of the enrichment (larger indicates a smaller adjusted p-value) and the color indicates the median log2 fold change (Log2FC)")
 
                 st.markdown("---")
             
