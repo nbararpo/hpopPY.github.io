@@ -327,6 +327,159 @@ def plot_factor_distribution(data, factor):
     return fig
 
 
+# ===== INTERACTIVE ANALYSIS FUNCTIONS =====
+
+def plot_ethnicity_age_interactive(data):
+    """Interactive plotly visualization: Ethnicity by Age Range colored by Geography"""
+    if 'Ehnicity' not in data.columns or 'Age_Range' not in data.columns or 'Country2' not in data.columns:
+        return None
+    
+    # Create cross-tabulation
+    cross_tab = data.groupby(['Ehnicity', 'Age_Range', 'Country2']).size().reset_index(name='Count')
+    
+    # Create the interactive scatter plot
+    fig = px.scatter(
+        cross_tab,
+        x='Ehnicity',
+        y='Age_Range',
+        size='Count',
+        color='Country2',
+        hover_data=['Count'],
+        title='Ethnicity vs Age Range Distribution by Geography',
+        labels={'Ehnicity': 'Ethnicity', 'Age_Range': 'Age Range', 'Conf_Site_Code': 'Country/Geography'},
+        size_max=50,
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    
+    fig.update_layout(
+        height=600,
+        showlegend=True,
+        xaxis_tickangle=-45,
+        hovermode='closest'
+    )
+    
+    return fig
+
+
+def plot_ethnicity_distribution_by_site(data):
+    """Interactive stacked bar chart: Ethnicity distribution colored by Site"""
+    if 'Ehnicity' not in data.columns or 'Country2' not in data.columns:
+        return None
+    
+    # Create cross-tabulation
+    cross_tab = data.groupby(['Ehnicity', 'Country2']).size().reset_index(name='Count')
+    
+    fig = px.bar(
+        cross_tab,
+        x='Ehnicity',
+        y='Count',
+        color='Country2',
+        title='Ethnicity Distribution by Country2',
+        labels={'Ehnicity': 'Ethnicity', 'Count': 'Number of Participants', 'Country2': 'Country/Geography'},
+        barmode='group',
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    
+    fig.update_layout(
+        height=500,
+        xaxis_tickangle=-45,
+        showlegend=True
+    )
+    
+    return fig
+
+
+def plot_age_distribution_by_site(data):
+    """Interactive stacked bar chart: Age Range distribution colored by Ehnicity"""
+    if 'Age_Range' not in data.columns or 'Country2' not in data.columns:
+        return None
+    
+    # Create cross-tabulation
+    cross_tab = data.groupby(['Age_Range', 'Ehnicity']).size().reset_index(name='Count')
+    
+    # Define age order
+    age_order = ['20 - 30', '30 - 40', '40 - 50', '50 - 60', '60 - 70', ">70"]
+    cross_tab['Age_Range'] = pd.Categorical(cross_tab['Age_Range'], categories=age_order, ordered=True)
+    cross_tab = cross_tab.sort_values('Age_Range')
+    
+    fig = px.bar(
+        cross_tab,
+        x='Age_Range',
+        y='Count',
+        color='Ehnicity',
+        title='Age Range Distribution by Site and Country',
+        labels={'Age_Range': 'Age Range', 'Count': 'Number of Participants', 'Ehnicity': 'Ehnicity'},
+        barmode='group',
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    
+    fig.update_layout(
+        height=500,
+        xaxis_tickangle=-45,
+        showlegend=True
+    )
+    
+    return fig
+
+
+def plot_heatmap_ethnicity_age_site(data):
+    """Interactive heatmap: Ethnicity x Age Range, faceted by Site"""
+    if 'Ehnicity' not in data.columns or 'Age_Range' not in data.columns or 'Conf_Site_Code' not in data.columns:
+        return None
+    
+    # Create pivot table for each site
+    sites = sorted(data['Conf_Site_Code'].unique())
+    age_order = ['20 - 30', '30 - 40', '40 - 50', '50 - 60', '60 - 70', ">70"]
+    
+    # Create subplot grid
+    from plotly.subplots import make_subplots
+    
+    n_sites = len(sites)
+    cols = min(3, n_sites)  # Max 3 columns
+    rows = (n_sites + cols - 1) // cols
+    
+    fig = make_subplots(
+        rows=rows, 
+        cols=cols,
+        subplot_titles=[f"{site}" for site in sites],
+        vertical_spacing=0.15,
+        horizontal_spacing=0.1
+    )
+    
+    for idx, site in enumerate(sites):
+        site_data = data[data['Conf_Site_Code'] == site]
+        pivot = site_data.groupby(['Ehnicity', 'Age_Range']).size().reset_index(name='Count')
+        pivot_table = pivot.pivot(index='Ehnicity', columns='Age_Range', values='Count').fillna(0)
+        
+        # Reorder columns
+        pivot_table = pivot_table.reindex(columns=[col for col in age_order if col in pivot_table.columns])
+        
+        row = idx // cols + 1
+        col = idx % cols + 1
+        
+        heatmap = go.Heatmap(
+            z=pivot_table.values,
+            x=pivot_table.columns,
+            y=pivot_table.index,
+            colorscale='Blues',
+            showscale=(idx == 0),
+            text=pivot_table.values,
+            texttemplate='%{text}',
+            textfont={"size": 10},
+            hovertemplate='Ethnicity: %{y}<br>Age Range: %{x}<br>Count: %{z}<extra></extra>'
+        )
+        
+        fig.add_trace(heatmap, row=row, col=col)
+    
+    fig.update_layout(
+        height=300 * rows,
+        title_text="Ethnicity vs Age Range Distribution Across Sites",
+        showlegend=False
+    )
+    
+    return fig
+
+
 def display_participant_demographics(data, participant_id):
     """Display demographics for a specific participant ID"""
     if 'Finalcode' not in data.columns:
@@ -342,6 +495,7 @@ def display_participant_demographics(data, participant_id):
         'bmi_category': 'BMI Category',
         'Ehnicity': 'Ethnicity',
         'Conf_Site_Code': 'Site',
+        "Country2": "Geography"
     }
     demographics = {}
     for col, label in demographic_fields.items():
@@ -594,7 +748,7 @@ def load_pathway_data():
 
 # ===== PLOTTING HELPERS FOR PATHWAYS =====
 
-def plot_pathway_bubble(data, title="Pathway Analysis", figsize=(10, 12)):
+def plot_pathway_bubble(data, title="Pathway Analysis", figsize=(5, 12)):
     """Matplotlib static bubble plot (Fig 3A style)"""
     if data is None or data.empty:
         return None
@@ -608,7 +762,7 @@ def plot_pathway_bubble(data, title="Pathway Analysis", figsize=(10, 12)):
         vmin=-0.6,
         vmax=0.6,
         edgecolor="black",
-        linewidth=0.4,
+        linewidth=1,
         alpha=0.85,
     )
     cbar = plt.colorbar(scatter, ax=ax, label="avg_log2 FoldChange")
@@ -618,7 +772,7 @@ def plot_pathway_bubble(data, title="Pathway Analysis", figsize=(10, 12)):
     ax.set_title(title, fontsize=14, fontweight="bold", pad=10)
     ax.grid(alpha=0.15, linestyle="--")
     plt.xticks(rotation=45, ha="right")
-    plt.yticks(fontsize=9)
+    plt.yticks(fontsize=10)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
@@ -784,6 +938,7 @@ def main():
                 analysis_type = st.selectbox(
                     "Select Analysis Type",
                     [
+                        "Ethnicity vs Age Range (Interactive)",
                         "BMI by Ethnicity",
                         "Age by Ethnicity",
                         "Site by Ethnicity",
@@ -795,7 +950,90 @@ def main():
                 )
                 st.markdown("---")
                 
-                if analysis_type == "BMI by Ethnicity":
+                if analysis_type == "Ethnicity vs Age Range (Interactive)":
+                    st.subheader("🔬 Ethnicity vs Age Range Interactive Analysis")
+                    st.info("Explore the relationship between Ethnicity and Age Range, color-coded by Site and Country")
+                    
+                    # Summary statistics
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        if 'Ehnicity' in data.columns:
+                            st.metric("Ethnicities", data['Ehnicity'].nunique())
+                    with col2:
+                        if 'Age_Range' in data.columns:
+                            st.metric("Age Ranges", data['Age_Range'].nunique())
+                    with col3:
+                        if 'Country2' in data.columns:
+                            st.metric("Countries", data['Country2'].nunique())
+                    
+                    st.markdown("---")
+                    
+                    # Main interactive scatter plot
+                    st.markdown("### Interactive Bubble Chart")
+                    st.write("Size represents participant count, color represents Country/Geography")
+                    fig_scatter = plot_ethnicity_age_interactive(data)
+                    if fig_scatter:
+                        st.plotly_chart(fig_scatter, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Side-by-side comparison panels
+                    st.markdown("### Side-by-Side Distribution Panels")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown('<p class="panel-header">📊 Ethnicity by Country/Geography</p>', unsafe_allow_html=True)
+                        fig_eth = plot_ethnicity_distribution_by_site(data)
+                        if fig_eth:
+                            st.plotly_chart(fig_eth, use_container_width=True)
+                        
+                        # Show breakdown table
+                        if st.checkbox("Show Ethnicity breakdown table", key="eth_table"):
+                            if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                                breakdown = pd.crosstab(data['Ehnicity'], data['Conf_Site_Code'], margins=True)
+                                st.dataframe(breakdown, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown('<p class="panel-header">📊 Age Range by Ehnicity</p>', unsafe_allow_html=True)
+                        fig_age = plot_age_distribution_by_site(data)
+                        if fig_age:
+                            st.plotly_chart(fig_age, use_container_width=True)
+                        
+                        # Show breakdown table
+                        if st.checkbox("Show Age Range breakdown table", key="age_table"):
+                            if 'Age_Range' in data.columns and 'Conf_Site_Code' in data.columns:
+                                breakdown = pd.crosstab(data['Age_Range'], data['Conf_Site_Code'], margins=True)
+                                st.dataframe(breakdown, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Heatmap visualization
+                    st.markdown("### Heatmap: Ethnicity × Age Range by Site")
+                    st.write("Individual heatmaps for each collection site (HUPO) showing the distribution across ethnicity and age range combinations")
+                    fig_heatmap = plot_heatmap_ethnicity_age_site(data)
+                    if fig_heatmap:
+                        st.plotly_chart(fig_heatmap, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Detailed cross-tabulation
+                    if st.checkbox("Show detailed cross-tabulation"):
+                        st.markdown("### Detailed Cross-Tabulation")
+                        if 'Ehnicity' in data.columns and 'Age_Range' in data.columns and 'Conf_Site_Code' in data.columns:
+                            # Create multi-index crosstab
+                            detailed_table = data.groupby(['Conf_Site_Code', 'Ehnicity', 'Age_Range']).size().reset_index(name='Count')
+                            st.dataframe(detailed_table, use_container_width=True, height=400)
+                            
+                            # Download button
+                            csv = detailed_table.to_csv(index=False)
+                            st.download_button(
+                                "📥 Download Detailed Data (CSV)", 
+                                csv, 
+                                "ethnicity_age_site_detailed.csv", 
+                                "text/csv"
+                            )
+                
+                elif analysis_type == "BMI by Ethnicity":
                     st.subheader("📊 BMI Distribution by Ethnicity")
                     fig = plot_bmi_by_ethnicity(data)
                     if fig:
