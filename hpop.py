@@ -1496,7 +1496,7 @@ def main():
                 st.markdown("### Pattern Distribution")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5D_Pettern.jpg"
                 st.image(github_pattern, caption="Pattern Distribution - Fig 5D", use_column_width=True)
-                st.write("Distribution of patterns across different ethnic groups and geographic locations, highlighting the relationships between biomolecular signatures, ethnicity, and residential areas.")
+                st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The **left panel** presents Pattern 3 and identifies genes/proteins that potentially contribute to **'Bile acid Biosynthesis'**. The **right panel** presents Pattern 4 and identifies metabolites/genes that potentially contribute to **'Autoimmune disease'**.")
 
                 st.markdown("---")
                 
