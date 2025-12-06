@@ -875,7 +875,8 @@ def main():
         st.sidebar.markdown("""
         **Navigate between dashboards:**
         - **Demographics**: Core analysis + Interactive + Residential Area
-        - **Ethnicity Analysis**: Ethnic patterns + Metabolomics
+        - **Ethnicity Analysis**: Ethnic patterns 
+        - **Geography Analysis**: Ethnic-Geography associated patterns                     
         - **Aging Analysis**: Age-related metrics
         """)
         st.sidebar.markdown("---")
@@ -886,9 +887,10 @@ def main():
                             f"{len(data[data['Sex'] == 'Male'])}/{len(data[data['Sex'] == 'Female'])}")
         
         # Main tabs
-        tab1, tab2, tab3 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
             "📊 Demographics", 
-            "🌍 Ethnicity Analysis",
+            "🧬 Ethnicity Analysis",
+            "🌍 Geography Analysis",
             "⏳ Aging Analysis"
         ])
         
@@ -1457,8 +1459,58 @@ def main():
                     st.error("Failed to load pathway data. Please check the GitHub URL and file format.")
                     st.info("Ensure Table S3.xlsx exists in the repository with sheet: 3D_PathwayAnnotation_plasma")
         
-        # ===== TAB 3: AGING ANALYSIS =====
+# ===== TAB 3: Geography-Ethnicity ANALYSIS =====
         with tab3:
+            st.markdown('<p class="tab-header">Geography</p>', unsafe_allow_html=True)
+            st.write("Geography-Ethnicity-related patterns and distributions")
+# Create sub-tabs
+            Geography_tab1, Geography_tab2 = st.tabs([
+                "📊 Ethnicity Geography Molecular Trajectory Fig  5",
+                " Ethnicity Geography Interactive"
+            ])
+            
+            # ===== SUB-TAB 1:  =====
+            with Geography_tab1:
+                st.subheader("Ethnicity Geography Molecular Trajectory Analysis Fig  5")
+                st.write("Cluster-Based Trajectory Analysis of Geography-Linked Biomolecular Signatures")
+                
+                st.markdown("---")
+                
+                # Figure 5A,B - Pattern Analysis
+                st.markdown("### Pattern Analysis")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5AB_update.jpg"
+                st.image(github_pattern, caption="Pattern Analysis - Fig 5A,B", use_column_width=True)
+                st.write("**A)** Illustration of the average scaled abundance of molecules representing the pattern. Distribution of bio-molecular abundance (on a z-scale) across participants, categorized by their ethnicity and residential area along the x-axis, and the abundance of biomolecules along the y-axis. **B)** Composite biomolecular landscape within each Pattern, providing details on the distribution and proportion of six omics data (such as biocrates, lipidomics, glycome, proteomics, and transcriptomics) in each pattern.")
+                
+                st.markdown("---")
+                
+                # Figure 5C - Pathway Enrichment
+                st.markdown("### Pathway enrichment analysis of molecular features associated with selected Patterns")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5C.jpg"
+                st.image(github_pattern, caption="Pathway Enrichment - Fig 5C", use_column_width=True)
+                st.write("Enrichment analysis conducted to pinpoint the biological functions and pathways associated with each Pattern. Notably, the analysis reveals distinct biological pathways in Pattern 3 and 4, determined primarily by metabolites/lipids as well as proteins and genes, with a color code representing the average abundance of all molecules related to the pathway.")
+                
+                st.markdown("---")
+                
+                # Figure 5D - Pattern Distribution
+                st.markdown("### Pathway Network")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5D_Pettern.jpg"
+                st.image(github_pattern, caption="Pattern Distribution - Fig 5D", use_column_width=True)
+                st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The left panel presents Pattern 3 and identifies genes/proteins that potentially contribute to “Bile acid Biosynthesis”. The right panel presents pattern 4 and identifies metabolites/genes that potentially contribute to “Autoimmune disease”.")
+
+                st.markdown("---")
+
+            # ===== SUB-TAB 2: Interactive Geography-Ethnicity Analysis =====
+            with Geography_tab2:
+                st.subheader("🌍 Ethnicity-Geography Interactive Analysis")
+                st.write("Explore interactive visualizations of geographic and ethnic distributions")
+                
+          
+
+
+
+        # ===== TAB 4: AGING ANALYSIS =====
+        with tab4:
             st.markdown('<p class="tab-header">Aging Analysis</p>', unsafe_allow_html=True)
             st.write("Age-related patterns and distributions")
             
