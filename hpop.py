@@ -1,0 +1,1769 @@
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import requests
+from io import BytesIO
+import numpy as np
+from PIL import Image
+import os
+import plotly.graph_objects as go
+import plotly.express as px
+from math import pi
+import matplotlib.pyplot as plt
+# -------------------------
+# Load hPOP logo (local → GitHub → emoji)
+# -------------------------
+def load_logo():
+    # 1. Try local logo
+    local_path = "hpop_logo.png"
+    if os.path.exists(local_path):
+        try:
+            return Image.open(local_path)
+        except:
+            pass
+
+    # 2. Try GitHub raw URL
+    github_raw_url = (
+        "https://raw.githubusercontent.com/nbararpo/"
+        "hPOP_Multiomics-Across-Ethnicity-Geography-and-Age/main/hpop_logo.jpg"
+    )
+    try:
+        response = requests.get(github_raw_url, timeout=5)
+        if response.status_code == 200:
+            return Image.open(BytesIO(response.content))
+    except:
+        pass
+
+    # 3. Fallback emoji
+    return "🧬"
+
+
+logo_image = load_logo()
+
+
+# -------------------------
+# Streamlit Page Config
+# -------------------------
+st.set_page_config(
+    page_title="hPOP Demographics Analysis",
+    page_icon=logo_image,
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .tab-header {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #2e8b57;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background-color: #f0f2f6;
+        border-radius: 10px;
+    }
+    
+    .panel-header {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #1f77b4;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background-color: #e8f4f9;
+        border-radius: 8px;
+        border-left: 4px solid #1f77b4;
+    }
+    
+    .metric-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 5px solid #1f77b4;
+    }
+    
+    .pathway-category {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #d35400;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+        background-color: #fef5e7;
+        border-radius: 5px;
+        border-left: 3px solid #d35400;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# Function to read the Excel file from a GitHub URL
+@st.cache_data
+def read_excel_from_github(url, sheet_name='MetaData'):
+    """Load data from GitHub repository"""
+    response = requests.get(url)
+    response.raise_for_status()
+    file = BytesIO(response.content)
+    return pd.read_excel(file, sheet_name=sheet_name)
+
+
+# Function to preprocess data
+def preprocess_data(data):
+    """Preprocess and clean the demographic data"""
+    if 'Sex' in data.columns:
+        data['Sex'] = data['Sex'].astype('category')
+    if 'bmi_category' in data.columns:
+        data['bmi_category'] = data['bmi_category'].astype('category')
+    if 'Age_Range' in data.columns:
+        data['Age_Range'] = data['Age_Range'].astype('category')
+    if 'Ehnicity' in data.columns:
+        data['Ehnicity'] = data['Ehnicity'].astype('category')
+    if 'Conf_Site_Code' in data.columns:
+        data['Conf_Site_Code'] = data['Conf_Site_Code'].astype('category')
+    return data
+
+
+# ===== MANUSCRIPT FIGURE PANEL PLOTS =====
+
+def plot_sex_count(data):
+    """Figure B - Sex distribution bar chart"""
+    if 'Sex' not in data.columns:
+        return None
+    counts = data['Sex'].value_counts().reindex(["Male", "Female"])
+    fig, ax = plt.subplots(figsize=(3, 4))
+    ax.bar(counts.index.map(lambda x: x[0]), counts.values, 
+           color='white', edgecolor='black', linewidth=1.5)
+    for i, v in enumerate(counts.values):
+        ax.text(i, v + 3, str(v), ha='center', fontsize=12, fontweight='bold')
+    ax.set_ylabel("Count", fontsize=11)
+    ax.set_title("Sex Distribution", fontsize=12, fontweight='bold')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+def plot_age_by_site(data):
+    """Figure C - Age category distribution by site"""
+    if 'Age_Range' not in data.columns or 'Conf_Site_Code' not in data.columns:
+        return None
+    age_levels = ['20 - 30', '30 - 40', '40 - 50', '50 - 60', '60 - 70', ">70"]
+    sites = sorted(data['Conf_Site_Code'].unique())
+    fig, ax = plt.subplots(figsize=(10, 6))
+    num_sites = len(sites)
+    width = 0.12
+    colors = plt.cm.Blues(np.linspace(0.3, 0.9, len(age_levels)))
+    for idx, age in enumerate(age_levels):
+        values = [sum((data['Conf_Site_Code'] == s) & (data['Age_Range'] == age)) for s in sites]
+        bar_positions = np.arange(num_sites) + (idx * width)
+        ax.bar(bar_positions, values, width=width, color=colors[idx], 
+               edgecolor='black', linewidth=0.8, label=age)
+    ax.set_xticks(np.arange(num_sites) + width * (len(age_levels) - 1) / 2)
+    ax.set_xticklabels(sites)
+    ax.set_xlabel("Site", fontsize=11)
+    ax.set_ylabel("Number of participants", fontsize=11)
+    ax.set_title("Age Category by Site", fontsize=12, fontweight='bold')
+    ax.legend(title="Age Range", bbox_to_anchor=(1.02, 1), loc='upper left')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    return fig
+
+
+def plot_bmi_category(data):
+    """Figure D - BMI category distribution"""
+    if 'bmi_category' not in data.columns:
+        return None
+    bmi_order = ["underweight", "normal", "overweight", "obese", "NA"]
+    counts = data['bmi_category'].value_counts().reindex(bmi_order).fillna(0)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.bar(counts.index, counts.values, color='white', edgecolor='black', linewidth=1.5)
+    for i, v in enumerate(counts.values):
+        ax.text(i, v + 2, str(int(v)), ha='center', fontsize=11, fontweight='bold')
+    ax.set_xlabel("BMI Category", fontsize=11)
+    ax.set_ylabel("Number of participants", fontsize=11)
+    ax.set_title("BMI Category Distribution", fontsize=12, fontweight='bold')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    return fig
+
+
+def plot_ethnicity(data):
+    """Figure E - Ethnicity distribution"""
+    if 'Ehnicity' not in data.columns:
+        return None
+    counts = data['Ehnicity'].value_counts()
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.bar(range(len(counts)), counts.values, color='white', edgecolor='black', linewidth=1.5)
+    for i, v in enumerate(counts.values):
+        ax.text(i, v + 2, str(v), ha='center', fontsize=11, fontweight='bold')
+    ax.set_xticks(range(len(counts)))
+    ax.set_xticklabels(counts.index, rotation=45, ha='right')
+    ax.set_ylabel("Number of participants", fontsize=11)
+    ax.set_title("Ethnicity Distribution", fontsize=12, fontweight='bold')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+def plot_bmi_by_ethnicity(data):
+    """BMI distribution by ethnicity"""
+    if 'Ehnicity' not in data.columns or 'bmi_category' not in data.columns:
+        return None
+    ethnicity_order = sorted(data['Ehnicity'].dropna().unique())
+    bmi_order = ["underweight", "normal", "overweight", "obese", "NA"]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    width = 0.15
+    colors = plt.cm.Set3(np.linspace(0, 1, len(bmi_order)))
+    for idx, bmi in enumerate(bmi_order):
+        values = [sum((data['Ehnicity'] == eth) & (data['bmi_category'] == bmi)) 
+                 for eth in ethnicity_order]
+        bar_positions = np.arange(len(ethnicity_order)) + (idx * width)
+        ax.bar(bar_positions, values, width=width, color=colors[idx], 
+               edgecolor='black', linewidth=0.8, label=bmi)
+    ax.set_xticks(np.arange(len(ethnicity_order)) + width * (len(bmi_order) - 1) / 2)
+    ax.set_xticklabels(ethnicity_order, rotation=45, ha='right')
+    ax.set_xlabel("Ethnicity", fontsize=11)
+    ax.set_ylabel("Number of participants", fontsize=11)
+    ax.set_title("BMI Category by Ethnicity", fontsize=12, fontweight='bold')
+    ax.legend(title="BMI Category", bbox_to_anchor=(1.02, 1), loc='upper left')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+def plot_age_by_ethnicity(data):
+    """Age distribution by ethnicity"""
+    if 'Ehnicity' not in data.columns or 'Age_Range' not in data.columns:
+        return None
+    ethnicity_order = sorted(data['Ehnicity'].dropna().unique())
+    age_levels = ['20 - 30', '30 - 40', '40 - 50', '50 - 60', '60 - 70', ">70"]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    width = 0.12
+    colors = plt.cm.Blues(np.linspace(0.3, 0.9, len(age_levels)))
+    for idx, age in enumerate(age_levels):
+        values = [sum((data['Ehnicity'] == eth) & (data['Age_Range'] == age)) 
+                 for eth in ethnicity_order]
+        bar_positions = np.arange(len(ethnicity_order)) + (idx * width)
+        ax.bar(bar_positions, values, width=width, color=colors[idx], 
+               edgecolor='black', linewidth=0.8, label=age)
+    ax.set_xticks(np.arange(len(ethnicity_order)) + width * (len(age_levels) - 1) / 2)
+    ax.set_xticklabels(ethnicity_order, rotation=45, ha='right')
+    ax.set_xlabel("Ethnicity", fontsize=11)
+    ax.set_ylabel("Number of participants", fontsize=11)
+    ax.set_title("Age Category by Ethnicity", fontsize=12, fontweight='bold')
+    ax.legend(title="Age Range", bbox_to_anchor=(1.02, 1), loc='upper left')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+def plot_site_by_ethnicity(data):
+    """Site distribution by ethnicity"""
+    if 'Ehnicity' not in data.columns or 'Conf_Site_Code' not in data.columns:
+        return None
+    ethnicity_order = sorted(data['Ehnicity'].dropna().unique())
+    sites = sorted(data['Conf_Site_Code'].unique())
+    fig, ax = plt.subplots(figsize=(12, 6))
+    width = 0.08
+    colors = plt.cm.Set2(np.linspace(0, 1, len(sites)))
+    for idx, site in enumerate(sites):
+        values = [sum((data['Ehnicity'] == eth) & (data['Conf_Site_Code'] == site)) 
+                 for eth in ethnicity_order]
+        bar_positions = np.arange(len(ethnicity_order)) + (idx * width)
+        ax.bar(bar_positions, values, width=width, color=colors[idx], 
+               edgecolor='black', linewidth=0.8, label=site)
+    ax.set_xticks(np.arange(len(ethnicity_order)) + width * (len(sites) - 1) / 2)
+    ax.set_xticklabels(ethnicity_order, rotation=45, ha='right')
+    ax.set_xlabel("Ethnicity", fontsize=11)
+    ax.set_ylabel("Number of participants", fontsize=11)
+    ax.set_title("Site Distribution by Ethnicity", fontsize=12, fontweight='bold')
+    ax.legend(title="Site", bbox_to_anchor=(1.02, 1), loc='upper left')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+def plot_factor_distribution(data, factor):
+    """Generic function to plot any categorical factor"""
+    if factor not in data.columns:
+        return None
+    fig, ax = plt.subplots(figsize=(8, 5))
+    if data[factor].dtype == 'object' or data[factor].dtype.name == 'category':
+        counts = data[factor].value_counts().sort_index()
+        ax.bar(range(len(counts)), counts.values, color='steelblue', 
+               edgecolor='black', linewidth=1.2)
+        ax.set_xticks(range(len(counts)))
+        ax.set_xticklabels(counts.index, rotation=45, ha='right')
+        for i, v in enumerate(counts.values):
+            ax.text(i, v + max(counts.values)*0.01, str(int(v)), 
+                   ha='center', va='bottom', fontsize=10, fontweight='bold')
+    else:
+        ax.hist(data[factor].dropna(), bins=30, color='steelblue', 
+               edgecolor='black', linewidth=1.2, alpha=0.7)
+        ax.set_xlabel(factor.replace('_', ' ').title(), fontsize=11)
+    ax.set_ylabel("Count" if data[factor].dtype == 'object' or data[factor].dtype.name == 'category' else "Frequency", 
+                  fontsize=11)
+    ax.set_title(f"Distribution of {factor.replace('_', ' ').title()}", 
+                fontsize=12, fontweight='bold')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+# ===== INTERACTIVE ANALYSIS FUNCTIONS =====
+
+def plot_ethnicity_age_interactive(data):
+    """Interactive plotly visualization: Ethnicity by Age Range colored by Geography"""
+    if 'Ehnicity' not in data.columns or 'Age_Range' not in data.columns or 'Country2' not in data.columns:
+        return None
+    
+    # Create cross-tabulation
+    cross_tab = data.groupby(['Ehnicity', 'Age_Range', 'Country2']).size().reset_index(name='Count')
+    
+    # Create the interactive scatter plot
+    fig = px.scatter(
+        cross_tab,
+        x='Ehnicity',
+        y='Age_Range',
+        size='Count',
+        color='Country2',
+        hover_data=['Count'],
+        title='Ethnicity vs Age Range Distribution by Geography',
+        labels={'Ehnicity': 'Ethnicity', 'Age_Range': 'Age Range', 'Conf_Site_Code': 'Country/Geography'},
+        size_max=50,
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    
+    fig.update_layout(
+        height=600,
+        showlegend=True,
+        xaxis_tickangle=-45,
+        hovermode='closest'
+    )
+    
+    return fig
+
+
+def plot_ethnicity_distribution_by_site(data):
+    """Interactive stacked bar chart: Ethnicity distribution colored by Site"""
+    if 'Ehnicity' not in data.columns or 'Country2' not in data.columns:
+        return None
+    
+    # Create cross-tabulation
+    cross_tab = data.groupby(['Ehnicity', 'Country2']).size().reset_index(name='Count')
+    
+    fig = px.bar(
+        cross_tab,
+        x='Ehnicity',
+        y='Count',
+        color='Country2',
+        title='Ethnicity Distribution by Country2',
+        labels={'Ehnicity': 'Ethnicity', 'Count': 'Number of Participants', 'Country2': 'Country/Geography'},
+        barmode='group',
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    
+    fig.update_layout(
+        height=500,
+        xaxis_tickangle=-45,
+        showlegend=True
+    )
+    
+    return fig
+
+
+def plot_age_distribution_by_site(data):
+    """Interactive stacked bar chart: Age Range distribution colored by Ehnicity"""
+    if 'Age_Range' not in data.columns or 'Country2' not in data.columns:
+        return None
+    
+    # Create cross-tabulation
+    cross_tab = data.groupby(['Age_Range', 'Ehnicity']).size().reset_index(name='Count')
+    
+    # Define age order
+    age_order = ['20 - 30', '30 - 40', '40 - 50', '50 - 60', '60 - 70', ">70"]
+    cross_tab['Age_Range'] = pd.Categorical(cross_tab['Age_Range'], categories=age_order, ordered=True)
+    cross_tab = cross_tab.sort_values('Age_Range')
+    
+    fig = px.bar(
+        cross_tab,
+        x='Age_Range',
+        y='Count',
+        color='Ehnicity',
+        title='Age Range Distribution by Site and Country',
+        labels={'Age_Range': 'Age Range', 'Count': 'Number of Participants', 'Ehnicity': 'Ehnicity'},
+        barmode='group',
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    
+    fig.update_layout(
+        height=500,
+        xaxis_tickangle=-45,
+        showlegend=True
+    )
+    
+    return fig
+
+
+def plot_heatmap_ethnicity_age_site(data):
+    """Interactive heatmap: Ethnicity x Age Range, faceted by Site"""
+    if 'Ehnicity' not in data.columns or 'Age_Range' not in data.columns or 'Conf_Site_Code' not in data.columns:
+        return None
+    
+    # Create pivot table for each site
+    sites = sorted(data['Conf_Site_Code'].unique())
+    age_order = ['20 - 30', '30 - 40', '40 - 50', '50 - 60', '60 - 70', ">70"]
+    
+    # Create subplot grid
+    from plotly.subplots import make_subplots
+    
+    n_sites = len(sites)
+    cols = min(3, n_sites)  # Max 3 columns
+    rows = (n_sites + cols - 1) // cols
+    
+    fig = make_subplots(
+        rows=rows, 
+        cols=cols,
+        subplot_titles=[f"{site}" for site in sites],
+        vertical_spacing=0.15,
+        horizontal_spacing=0.1
+    )
+    
+    for idx, site in enumerate(sites):
+        site_data = data[data['Conf_Site_Code'] == site]
+        pivot = site_data.groupby(['Ehnicity', 'Age_Range']).size().reset_index(name='Count')
+        pivot_table = pivot.pivot(index='Ehnicity', columns='Age_Range', values='Count').fillna(0)
+        
+        # Reorder columns
+        pivot_table = pivot_table.reindex(columns=[col for col in age_order if col in pivot_table.columns])
+        
+        row = idx // cols + 1
+        col = idx % cols + 1
+        
+        heatmap = go.Heatmap(
+            z=pivot_table.values,
+            x=pivot_table.columns,
+            y=pivot_table.index,
+            colorscale='Blues',
+            showscale=(idx == 0),
+            text=pivot_table.values,
+            texttemplate='%{text}',
+            textfont={"size": 10},
+            hovertemplate='Ethnicity: %{y}<br>Age Range: %{x}<br>Count: %{z}<extra></extra>'
+        )
+        
+        fig.add_trace(heatmap, row=row, col=col)
+    
+    fig.update_layout(
+        height=300 * rows,
+        title_text="Ethnicity vs Age Range Distribution Across Sites",
+        showlegend=False
+    )
+    
+    return fig
+
+
+def display_participant_demographics(data, participant_id):
+    """Display demographics for a specific participant ID"""
+    if 'Finalcode' not in data.columns:
+        return None
+    participant = data[data['Finalcode'] == participant_id]
+    if len(participant) == 0:
+        return None
+    participant = participant.iloc[0]
+    demographic_fields = {
+        'Finalcode': 'Participant ID',
+        'Sex': 'Sex',
+        'Age_Range': 'Age Range',
+        'bmi_category': 'BMI Category',
+        'Ehnicity': 'Ethnicity',
+        'Conf_Site_Code': 'Site',
+        "Country2": "Geography"
+    }
+    demographics = {}
+    for col, label in demographic_fields.items():
+        if col in data.columns:
+            demographics[label] = participant[col]
+    return demographics
+
+
+# ===== RESIDENTIAL AREA VISUALIZATION FUNCTIONS =====
+
+def create_box_plot(data, factor, group_by=None):
+    """Create interactive box plot for distribution analysis"""
+    if factor not in data.columns:
+        return None
+    fig = go.Figure()
+    if group_by and group_by in data.columns:
+        for category in sorted(data[group_by].unique()):
+            subset = data[data[group_by] == category]
+            fig.add_trace(go.Box(
+                y=subset[factor],
+                name=str(category),
+                boxmean='sd',
+                marker_color=px.colors.qualitative.Set2[len(fig.data) % len(px.colors.qualitative.Set2)]
+            ))
+        fig.update_layout(
+            title=f"Distribution of {factor} by {group_by}",
+            yaxis_title=factor,
+            xaxis_title=group_by,
+            showlegend=True,
+            height=500,
+            template="plotly_white",
+            font=dict(size=12)
+        )
+    else:
+        fig.add_trace(go.Box(
+            y=data[factor],
+            name=factor,
+            boxmean='sd',
+            marker_color='steelblue'
+        ))
+        fig.update_layout(
+            title=f"Distribution of {factor}",
+            yaxis_title=factor,
+            height=500,
+            template="plotly_white",
+            font=dict(size=12)
+        )
+    return fig
+
+
+def create_line_plot_age_across_groups(data, age_col, group_col):
+    """Create line plot showing average age across different groups"""
+    if age_col not in data.columns or group_col not in data.columns:
+        return None
+    avg_age = data.groupby(group_col)[age_col].mean().reset_index()
+    avg_age = avg_age.sort_values(group_col)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=avg_age[group_col],
+        y=avg_age[age_col],
+        mode='lines+markers',
+        name='Average Age',
+        line=dict(color='#1f77b4', width=3),
+        marker=dict(size=10, color='#1f77b4', line=dict(color='white', width=2))
+    ))
+    if len(data[group_col].unique()) < 20:
+        std_age = data.groupby(group_col)[age_col].std().reset_index()
+        std_age = std_age.sort_values(group_col)
+        fig.add_trace(go.Scatter(
+            x=avg_age[group_col],
+            y=avg_age[age_col],
+            error_y=dict(
+                type='data',
+                array=std_age[age_col],
+                visible=True,
+                color='rgba(31, 119, 180, 0.3)'
+            ),
+            mode='markers',
+            marker=dict(size=0.1),
+            showlegend=False
+        ))
+    fig.update_layout(
+        title=f"Average Age Across {group_col}",
+        xaxis_title=group_col,
+        yaxis_title=f"Average {age_col}",
+        height=500,
+        template="plotly_white",
+        font=dict(size=12),
+        hovermode='x unified'
+    )
+    fig.update_xaxes(tickangle=-45)
+    return fig
+
+
+def create_radar_plot_phenoage(data, group_col, phenoage_cols):
+    """Create radar plot for PhenoAge scores across groups"""
+    if not phenoage_cols or group_col not in data.columns:
+        return None
+    available_cols = [col for col in phenoage_cols if col in data.columns]
+    if not available_cols:
+        return None
+    fig = go.Figure()
+    groups = sorted(data[group_col].dropna().unique())
+    colors = px.colors.qualitative.Set2
+    for idx, group in enumerate(groups):
+        subset = data[data[group_col] == group]
+        values = []
+        for col in available_cols:
+            if subset[col].notna().sum() > 0:
+                values.append(subset[col].mean())
+            else:
+                values.append(0)
+        values.append(values[0])
+        theta_labels = available_cols + [available_cols[0]]
+        fig.add_trace(go.Scatterpolar(
+            r=values,
+            theta=theta_labels,
+            fill='toself',
+            name=str(group),
+            line=dict(color=colors[idx % len(colors)], width=2),
+            fillcolor=colors[idx % len(colors)],
+            opacity=0.5
+        ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[
+                    min([data[col].min() for col in available_cols if col in data.columns]),
+                    max([data[col].max() for col in available_cols if col in data.columns])
+                ]
+            )
+        ),
+        title=f"PhenoAge Profile Across {group_col}",
+        showlegend=True,
+        height=600,
+        template="plotly_white",
+        font=dict(size=12)
+    )
+    return fig
+
+
+def display_summary_statistics(data):
+    """Display summary statistics for the dataset"""
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Participants", len(data))
+    with col2:
+        if 'Sex' in data.columns:
+            male_count = len(data[data['Sex'] == 'Male'])
+            st.metric("Male", male_count)
+    with col3:
+        if 'Sex' in data.columns:
+            female_count = len(data[data['Sex'] == 'Female'])
+            st.metric("Female", female_count)
+    with col4:
+        if 'Conf_Site_Code' in data.columns:
+            site_count = data['Conf_Site_Code'].nunique()
+            st.metric("Sites", site_count)
+
+
+# ===== METABOLOMICS PATHWAY DATA LOADING =====
+
+@st.cache_data(ttl=3600)
+def load_pathway_data():
+    """Load and process metabolomics pathway data from Table S3"""
+    try:
+        url = (
+            "https://raw.githubusercontent.com/"
+            "nbararpo/hPOP_Multiomics-Across-Ethnicity-Geography-and-Age/"
+            "main/Table%20S3.xlsx"
+        )
+        resp = requests.get(url, timeout=20)
+        resp.raise_for_status()
+        xlsx = BytesIO(resp.content)
+        df = pd.read_excel(xlsx, sheet_name="3D_PathwayAnnotation_plasma")
+        
+        required_cols = ["name", "contrast", "Pathway.Name", "log2fc", "pBH"]
+        missing_cols = [c for c in required_cols if c not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Missing required columns: {missing_cols}")
+        
+        dplas_avg = (
+            df.groupby(["name", "contrast", "Pathway.Name"], dropna=False)
+            .agg(avg_log2fc=("log2fc", "mean"), avg_pBH=("pBH", "mean"))
+            .reset_index()
+        )
+        dplas_avg["avg_pBH"] = dplas_avg["avg_pBH"].replace(0, np.nextafter(0, 1))
+        dplas_avg["lpBH"] = -np.log10(dplas_avg["avg_pBH"])
+        dplas_avg["cor"] = np.where(dplas_avg["avg_log2fc"] > 0, 1, -1)
+        
+        lipid_pathways = [
+        "Fatty.acid Oxidation and Synthesis",
+            "Ceramide-glycosylceramides Metabolism",
+            "Sphingolipid Metabolism",
+            "Glycerolipids Metabolism",
+            "Glycerophospholipids Metabolism",
+            "Glycerolipids Metabolism (TAG-PUSFAs)",
+            "Glycerolipids Metabolism (DAG)",
+            "Glycerolipids Metabolism (TAG-MUSFAs)",
+            "Glycerolipids Metabolism (TAG-PUSFAs)",
+            "Glycerolipids Metabolism (TAG-SAFs)",
+            "Glycerophospholipids Metabolism (LPC)",
+            "Glycerophospholipids Metabolism (LPE)",
+            "Glycerophospholipids Metabolism (PC)",
+            "Glycerophospholipids Metabolism (PE)"
+        ]
+        amino_pathways = [
+            "1-Carbon, Folate, Formate, Glycine, Serine Metabolism",
+            "Amino acid Metabolism",
+            "Amino-Sugar, Galactose, and Non-Glucose Metabolism",
+            "GABA, Glutamate, Arginine, Ornithine, Proline Metabolism",
+            "Histidine, Histamine, Carnosine Metabolism",
+            "Krebs Cycle",
+            "Nitric Oxide, Superoxide, Peroxide Metabolism",
+            "Peptides",
+            "Porphyrin metabolism",
+            "SAM, SAH, Methionine, Cysteine, Glutathione Metabolism",
+            "Tryptophan, Kynurenine, Serotonin, Melatonin Metabolism",
+            "Urea Cycle",
+            "Vitamin Metabolism",
+        ]
+        nucleotide_pathways = ["Purine Metabolism"]
+        microbiome_pathways = [
+            "Indole Metabolism",
+            "Microbiome Metabolism",
+            "Taurine Metabolism",
+            "Tyrosine and Phenylalanine Metabolism",
+        ]
+        bile_pathways = ["Bile Salt Metabolism", "Cholesterol Metabolism", "Steroid Metabolism"]
+        
+        lipid_df = dplas_avg[dplas_avg["Pathway.Name"].isin(lipid_pathways)].copy()
+        dataA = dplas_avg[dplas_avg["Pathway.Name"].isin(amino_pathways)].copy()
+        dataB = dplas_avg[dplas_avg["Pathway.Name"].isin(nucleotide_pathways)].copy()
+        dataC = dplas_avg[dplas_avg["Pathway.Name"].isin(microbiome_pathways)].copy()
+        dataS = dplas_avg[dplas_avg["Pathway.Name"].isin(bile_pathways)].copy()
+        
+        lipid_df["category"] = "Lipid"
+        dataA["category"] = "Amino acids and Energy"
+        dataB["category"] = "Nucleotides"
+        dataC["category"] = "Microbiome-Derived Metabolites"
+        dataS["category"] = "Bile and Sterol"
+        
+        return dataA, dataB, dataC, dataS, lipid_df, df
+    
+    except Exception as e:
+        st.error(f"Error loading pathway data: {e}")
+        return None, None, None, None, None, None
+
+
+# ===== PLOTTING HELPERS FOR PATHWAYS =====
+
+def plot_pathway_bubble(data, title="Pathway Analysis", figsize=(5, 12)):
+    """Matplotlib static bubble plot (Fig 3A style)"""
+    if data is None or data.empty:
+        return None
+    fig, ax = plt.subplots(figsize=figsize)
+    scatter = ax.scatter(
+        data["contrast"],
+        data["name"],
+        c=data["avg_log2fc"],
+        s=np.clip(data["lpBH"], 0.5, None) * 10,
+        cmap="coolwarm",
+        vmin=-0.6,
+        vmax=0.6,
+        edgecolor="black",
+        linewidth=1,
+        alpha=0.85,
+    )
+    cbar = plt.colorbar(scatter, ax=ax, label="avg_log2 FoldChange")
+    cbar.set_label("avg_log2 FoldChange", fontsize=11, fontweight="bold")
+    ax.set_xlabel("Contrast", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Metabolite / Pathway", fontsize=12, fontweight="bold")
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=10)
+    ax.grid(alpha=0.15, linestyle="--")
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(fontsize=10)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    plt.tight_layout()
+    return fig
+
+
+def plot_pathway_bubble_interactive(data, title="Pathway Analysis"):
+    """Interactive Plotly bubble plot (Fig 3A style)"""
+    if data is None or data.empty:
+        return None
+    dff = data.copy()
+    dff["hover_text"] = (
+        "Metabolite: " + dff["name"].astype(str) +
+        "<br>Contrast: " + dff["contrast"].astype(str) +
+        "<br>Pathway: " + dff["Pathway.Name"].astype(str) +
+        "<br>avg_log2FC: " + dff["avg_log2fc"].round(3).astype(str) +
+        "<br>BH p-value: " + dff["avg_pBH"].apply(lambda x: f"{x:.2e}") +
+        "<br>-log10(p): " + dff["lpBH"].round(2).astype(str)
+    )
+    fig = go.Figure(
+        data=go.Scatter(
+            x=dff["contrast"],
+            y=dff["name"],
+            mode="markers",
+            marker=dict(
+                size=np.clip(dff["lpBH"], 0.5, None) * 10,
+                color=dff["avg_log2fc"],
+                colorscale="RdBu",
+                cmin=-0.6,
+                cmax=0.6,
+                showscale=True,
+                colorbar=dict(title="avg_log2FC"),
+                line=dict(color="black", width=0.4),
+            ),
+            text=dff["hover_text"],
+            hovertemplate="%{text}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=title,
+        xaxis_title="Contrast",
+        yaxis_title="Metabolite / Pathway",
+        height=max(600, len(dff["name"].unique()) * 15),
+        template="plotly_white",
+        font=dict(size=11),
+        hovermode="closest",
+    )
+    fig.update_xaxes(tickangle=-45)
+    return fig
+
+
+# ===== MAIN APPLICATION =====
+
+def main():
+    # Logo HTML
+    if isinstance(logo_image, str):
+        logo_html = f"<span class='logo-emoji'>{logo_image}</span>"
+    else:
+        import base64
+        buf = BytesIO()
+        logo_image.save(buf, format="PNG")
+        encoded_logo = base64.b64encode(buf.getvalue()).decode()
+        logo_html = (
+            f'<img src="data:image/png;base64,{encoded_logo}" '
+            f'style="width:50px; vertical-align:middle; margin-right:15px;">'
+        )
+    
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; font-size:32px; font-weight:600; 
+             color:#1f4e79; margin-bottom:20px;">
+            {logo_html}
+            hPOP Demographics Analysis Dashboard
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    metadata_url = "https://github.com/nbararpo/hPOP_Multiomics-Across-Ethnicity-Geography-and-Age/raw/main/SupplementalTable1_Metadata.xlsx"
+    
+    try:
+        with st.spinner("Loading data from GitHub..."):
+            data = read_excel_from_github(metadata_url, sheet_name='MetaData')
+            data = preprocess_data(data)
+            
+            # Load residential area data
+            try:
+                residential_data = read_excel_from_github(metadata_url, sheet_name='PhenoAge-ResidentialAreas')
+            except:
+                residential_data = None
+        
+        st.success(f"✅ Data loaded successfully! {len(data)} participants")
+        display_summary_statistics(data)
+        st.markdown("---")
+        
+        # Sidebar
+        st.sidebar.title("hPOP Cohort")
+        st.sidebar.markdown("---")
+        st.sidebar.header("📊 Main Dashboard Selection")
+        st.sidebar.markdown("""
+        **Navigate between dashboards:**
+        - **Demographics**: Core analysis + Interactive + Residential Area
+        - **Ethnicity Analysis**: Ethnic patterns 
+        - **Geography Analysis**: Ethnic-Geography associated patterns                     
+        - **Aging Analysis**: Age-related metrics
+        """)
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Quick Statistics")
+        st.sidebar.metric("Total Participants", len(data))
+        if 'Sex' in data.columns:
+            st.sidebar.metric("Male/Female", 
+                            f"{len(data[data['Sex'] == 'Male'])}/{len(data[data['Sex'] == 'Female'])}")
+        
+        # Main tabs
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📊 Demographics", 
+            "🧬 Ethnicity Analysis",
+            "🌍 Geography Analysis",
+            "⏳ Aging Analysis"
+        ])
+        
+        # ===== TAB 1: DEMOGRAPHICS =====
+        with tab1:
+            st.markdown('<p class="tab-header">Demographics Analysis</p>', unsafe_allow_html=True)
+            
+            demo_tab1, demo_tab2, demo_tab3 = st.tabs([
+                "Main Figures", 
+                "Interactive Analysis",
+                "Residential Area"
+            ])
+            
+            # Main Figures
+            with demo_tab1:
+                st.markdown('<p class="panel-header">Main Figures (Manuscript)</p>', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    st.subheader("Sex Distribution")
+                    fig_sex = plot_sex_count(data)
+                    if fig_sex:
+                        st.pyplot(fig_sex)
+                with col2:
+                    st.subheader("Age by Site")
+                    fig_age_site = plot_age_by_site(data)
+                    if fig_age_site:
+                        st.pyplot(fig_age_site)
+                st.markdown("---")
+                col3, col4 = st.columns(2)
+                with col3:
+                    st.subheader("BMI Category")
+                    fig_bmi = plot_bmi_category(data)
+                    if fig_bmi:
+                        st.pyplot(fig_bmi)
+                with col4:
+                    st.subheader("Ethnicity")
+                    fig_eth = plot_ethnicity(data)
+                    if fig_eth:
+                        st.pyplot(fig_eth)
+            
+            # Interactive Analysis
+            with demo_tab2:
+                st.markdown('<p class="panel-header">Interactive Analysis</p>', unsafe_allow_html=True)
+                st.write("Explore demographic patterns by selecting different variables")
+                st.markdown("---")
+                
+                analysis_type = st.selectbox(
+                    "Select Analysis Type",
+                    [
+                        "Ethnicity vs Age Range (Interactive)",
+                        "BMI by Ethnicity",
+                        "Age by Ethnicity",
+                        "Site by Ethnicity",
+                        "Individual Participant Demographics",
+                        "Side-by-Side Factor Comparison",
+                        "Single Factor Distribution",
+                        "Custom Data Table"
+                    ]
+                )
+                st.markdown("---")
+                
+                if analysis_type == "Ethnicity vs Age Range (Interactive)":
+                    st.subheader("🔬 Ethnicity vs Age Range Interactive Analysis")
+                    st.info("Explore the relationship between Ethnicity and Age Range, color-coded by Site and Country")
+                    
+                    # Summary statistics
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        if 'Ehnicity' in data.columns:
+                            st.metric("Ethnicities", data['Ehnicity'].nunique())
+                    with col2:
+                        if 'Age_Range' in data.columns:
+                            st.metric("Age Ranges", data['Age_Range'].nunique())
+                    with col3:
+                        if 'Country2' in data.columns:
+                            st.metric("Countries", data['Country2'].nunique())
+                    
+                    st.markdown("---")
+                    
+                    # Main interactive scatter plot
+                    st.markdown("### Interactive Bubble Chart")
+                    st.write("Size represents participant count, color represents Country/Geography")
+                    fig_scatter = plot_ethnicity_age_interactive(data)
+                    if fig_scatter:
+                        st.plotly_chart(fig_scatter, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Side-by-side comparison panels
+                    st.markdown("### Side-by-Side Distribution Panels")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown('<p class="panel-header">📊 Ethnicity by Country/Geography</p>', unsafe_allow_html=True)
+                        fig_eth = plot_ethnicity_distribution_by_site(data)
+                        if fig_eth:
+                            st.plotly_chart(fig_eth, use_container_width=True)
+                        
+                        # Show breakdown table
+                        if st.checkbox("Show Ethnicity breakdown table", key="eth_table"):
+                            if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                                breakdown = pd.crosstab(data['Ehnicity'], data['Conf_Site_Code'], margins=True)
+                                st.dataframe(breakdown, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown('<p class="panel-header">📊 Age Range by Ehnicity</p>', unsafe_allow_html=True)
+                        fig_age = plot_age_distribution_by_site(data)
+                        if fig_age:
+                            st.plotly_chart(fig_age, use_container_width=True)
+                        
+                        # Show breakdown table
+                        if st.checkbox("Show Age Range breakdown table", key="age_table"):
+                            if 'Age_Range' in data.columns and 'Conf_Site_Code' in data.columns:
+                                breakdown = pd.crosstab(data['Age_Range'], data['Conf_Site_Code'], margins=True)
+                                st.dataframe(breakdown, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Heatmap visualization
+                    st.markdown("### Heatmap: Ethnicity × Age Range by Site")
+                    st.write("Individual heatmaps for each collection site (HUPO) showing the distribution across ethnicity and age range combinations")
+                    fig_heatmap = plot_heatmap_ethnicity_age_site(data)
+                    if fig_heatmap:
+                        st.plotly_chart(fig_heatmap, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Detailed cross-tabulation
+                    if st.checkbox("Show detailed cross-tabulation"):
+                        st.markdown("### Detailed Cross-Tabulation")
+                        if 'Ehnicity' in data.columns and 'Age_Range' in data.columns and 'Conf_Site_Code' in data.columns:
+                            # Create multi-index crosstab
+                            detailed_table = data.groupby(['Conf_Site_Code', 'Ehnicity', 'Age_Range']).size().reset_index(name='Count')
+                            st.dataframe(detailed_table, use_container_width=True, height=400)
+                            
+                            # Download button
+                            csv = detailed_table.to_csv(index=False)
+                            st.download_button(
+                                "📥 Download Detailed Data (CSV)", 
+                                csv, 
+                                "ethnicity_age_site_detailed.csv", 
+                                "text/csv"
+                            )
+                
+                elif analysis_type == "BMI by Ethnicity":
+                    st.subheader("📊 BMI Distribution by Ethnicity")
+                    fig = plot_bmi_by_ethnicity(data)
+                    if fig:
+                        st.pyplot(fig)
+                        if st.checkbox("Show breakdown table"):
+                            if 'Ehnicity' in data.columns and 'bmi_category' in data.columns:
+                                breakdown = pd.crosstab(data['Ehnicity'], data['bmi_category'], margins=True)
+                                st.dataframe(breakdown)
+                
+                elif analysis_type == "Age by Ethnicity":
+                    st.subheader("📊 Age Distribution by Ethnicity")
+                    fig = plot_age_by_ethnicity(data)
+                    if fig:
+                        st.pyplot(fig)
+                        if st.checkbox("Show breakdown table"):
+                            if 'Ehnicity' in data.columns and 'Age_Range' in data.columns:
+                                breakdown = pd.crosstab(data['Ehnicity'], data['Age_Range'], margins=True)
+                                st.dataframe(breakdown)
+                
+                elif analysis_type == "Site by Ethnicity":
+                    st.subheader("📊 Site Distribution by Ethnicity")
+                    fig = plot_site_by_ethnicity(data)
+                    if fig:
+                        st.pyplot(fig)
+                        if st.checkbox("Show breakdown table"):
+                            if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                                breakdown = pd.crosstab(data['Ehnicity'], data['Conf_Site_Code'], margins=True)
+                                st.dataframe(breakdown)
+                
+                elif analysis_type == "Individual Participant Demographics":
+                    st.subheader("👤 Individual Participant Demographics")
+                    if 'Finalcode' in data.columns:
+                        participant_ids = sorted(data['Finalcode'].unique().tolist())
+                        selected_id = st.selectbox("Select Participant ID", participant_ids)
+                        if selected_id:
+                            demographics = display_participant_demographics(data, selected_id)
+                            if demographics:
+                                st.markdown("---")
+                                st.subheader(f"Demographics for: {selected_id}")
+                                col1, col2, col3 = st.columns(3)
+                                demo_items = list(demographics.items())
+                                for idx, (key, value) in enumerate(demo_items):
+                                    col = [col1, col2, col3][idx % 3]
+                                    with col:
+                                        st.markdown(f"""
+                                        <div class="metric-card">
+                                            <h4 style="margin:0; color:#666;">{key}</h4>
+                                            <h3 style="margin:0.5rem 0 0 0; color:#1f77b4;">{value}</h3>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                if st.checkbox("Show all data fields"):
+                                    participant_data = data[data['Finalcode'] == selected_id].T
+                                    participant_data.columns = ['Value']
+                                    st.dataframe(participant_data)
+                
+                elif analysis_type == "Side-by-Side Factor Comparison":
+                    st.subheader("📊 Side-by-Side Factor Comparison")
+                    available_factors = data.columns.tolist()
+                    for col in ['Sex', 'sex', 'Age_Range', 'age_range', 'URL']:
+                        if col in available_factors:
+                            available_factors.remove(col)
+                    if len(available_factors) > 1:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            factor1 = st.selectbox("Select first factor", available_factors, key="factor1")
+                        with col2:
+                            factor2 = st.selectbox("Select second factor", available_factors, key="factor2")
+                        st.markdown("---")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if factor1:
+                                fig1 = plot_factor_distribution(data, factor1)
+                                if fig1:
+                                    st.pyplot(fig1)
+                        with col2:
+                            if factor2:
+                                fig2 = plot_factor_distribution(data, factor2)
+                                if fig2:
+                                    st.pyplot(fig2)
+                
+                elif analysis_type == "Single Factor Distribution":
+                    st.subheader("📊 Single Factor Distribution")
+                    available_factors = data.columns.tolist()
+                    for col in ['Sex', 'sex', 'Age_Range', 'URL']:
+                        if col in available_factors:
+                            available_factors.remove(col)
+                    if available_factors:
+                        selected_factor = st.selectbox("Select factor", available_factors)
+                        if selected_factor:
+                            fig = plot_factor_distribution(data, selected_factor)
+                            if fig:
+                                st.pyplot(fig)
+                                if st.checkbox("Show statistics"):
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        if data[selected_factor].dtype in ['int64', 'float64']:
+                                            st.dataframe(data[selected_factor].describe())
+                                        else:
+                                            st.dataframe(data[selected_factor].value_counts())
+                                    with col2:
+                                        st.write(f"- Total: {len(data[selected_factor])}")
+                                        st.write(f"- Missing: {data[selected_factor].isna().sum()}")
+                                        st.write(f"- Unique: {data[selected_factor].nunique()}")
+                
+                elif analysis_type == "Custom Data Table":
+                    st.subheader("📋 Custom Data Filter")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if 'Ehnicity' in data.columns:
+                            selected_ethnicity = st.multiselect("Select Ethnicity",
+                                options=data['Ehnicity'].unique().tolist(),
+                                default=data['Ehnicity'].unique().tolist())
+                        else:
+                            selected_ethnicity = []
+                    with col2:
+                        if 'Age_Range' in data.columns:
+                            selected_age = st.multiselect("Select Age Range",
+                                options=data['Age_Range'].unique().tolist(),
+                                default=data['Age_Range'].unique().tolist())
+                        else:
+                            selected_age = []
+                    filtered_data = data.copy()
+                    if selected_ethnicity and 'Ehnicity' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Ehnicity'].isin(selected_ethnicity)]
+                    if selected_age and 'Age_Range' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Age_Range'].isin(selected_age)]
+                    st.write(f"**Filtered Results:** {len(filtered_data)} participants")
+                    if st.checkbox("Show full table"):
+                        st.dataframe(filtered_data)
+                    else:
+                        st.dataframe(filtered_data.head(20))
+                    csv = filtered_data.to_csv(index=False)
+                    st.download_button("📥 Download CSV", csv, "hpop_filtered.csv", "text/csv")
+            
+            # Residential Area
+            with demo_tab3:
+                st.markdown('<p class="panel-header">Residential Area Analysis</p>', unsafe_allow_html=True)
+                if residential_data is not None and not residential_data.empty:
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Total Records", len(residential_data))
+                    with col2:
+                        if 'Country' in residential_data.columns:
+                            st.metric("Countries", residential_data['Country'].nunique())
+                    with col3:
+                        if 'Region' in residential_data.columns:
+                            st.metric("Regions", residential_data['Region'].nunique())
+                    with col4:
+                        st.metric("Numeric Vars", len(residential_data.select_dtypes(include=[np.number]).columns))
+                    
+                    st.markdown("---")
+                    viz_type = st.selectbox("Select Visualization", [
+                        "Box Plot - Distribution Analysis",
+                        "Line Plot - Average Age Trends",
+                        "Radar Plot - PhenoAge Scores",
+                        "Data Preview & Export"
+                    ])
+                    st.markdown("---")
+                    
+                    if viz_type == "Box Plot - Distribution Analysis":
+                        st.subheader("📦 Box Plot Analysis")
+                        numeric_cols = residential_data.select_dtypes(include=[np.number]).columns.tolist()
+                        categorical_cols = residential_data.select_dtypes(include=['object', 'category']).columns.tolist()
+                        if numeric_cols and categorical_cols:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                variable = st.selectbox("Select Variable", numeric_cols)
+                            with col2:
+                                group_by = st.selectbox("Group By", categorical_cols)
+                            if variable and group_by:
+                                fig = create_box_plot(residential_data, variable, group_by)
+                                if fig:
+                                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    elif viz_type == "Line Plot - Average Age Trends":
+                        st.subheader("📈 Line Plot: Age Trends")
+                        age_cols = [col for col in residential_data.columns if 'age' in col.lower()]
+                        if not age_cols:
+                            age_cols = residential_data.select_dtypes(include=[np.number]).columns.tolist()
+                        categorical_cols = residential_data.select_dtypes(include=['object', 'category']).columns.tolist()
+                        if age_cols and categorical_cols:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                value_col = st.selectbox("Select Value", age_cols)
+                            with col2:
+                                group_col = st.selectbox("Group By", categorical_cols)
+                            if value_col and group_col:
+                                fig = create_line_plot_age_across_groups(residential_data, value_col, group_col)
+                                if fig:
+                                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    elif viz_type == "Radar Plot - PhenoAge Scores":
+                        st.subheader("🕸️ Radar Plot: PhenoAge")
+                        numeric_cols = residential_data.select_dtypes(include=[np.number]).columns.tolist()
+                        categorical_cols = residential_data.select_dtypes(include=['object', 'category']).columns.tolist()
+                        if numeric_cols and categorical_cols:
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                selected_metrics = st.multiselect("Select Metrics (3+)", numeric_cols, default=numeric_cols[:3] if len(numeric_cols) >= 3 else numeric_cols)
+                            with col2:
+                                group_col = st.selectbox("Group By", categorical_cols)
+                            if selected_metrics and len(selected_metrics) >= 3 and group_col:
+                                fig = create_radar_plot_phenoage(residential_data, group_col, selected_metrics)
+                                if fig:
+                                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    elif viz_type == "Data Preview & Export":
+                        st.subheader("📋 Data Preview")
+                        st.write(f"Total Rows: {len(residential_data)}")
+                        st.dataframe(residential_data.head(20))
+                        csv = residential_data.to_csv(index=False)
+                        st.download_button("📥 Download CSV", csv, "residential_area.csv", "text/csv")
+                else:
+                    st.warning("Residential Area data not available")
+        
+        # ===== TAB 2: ETHNICITY ANALYSIS =====
+        with tab2:
+            st.markdown('<p class="tab-header">Ethnicity Analysis</p>', unsafe_allow_html=True)
+            st.write("Ethnicity-based analysis: Functional annotation and Pathways")
+            
+            # Create sub-tabs
+            ethnic_tab1, ethnic_tab2 = st.tabs([
+                "📊 Metabolomics Pathways Main Fig 3A",
+                " Metabolomics Pathways Interactive"
+            ])
+            
+            # ===== SUB-TAB 1: DEMOGRAPHIC PATTERNS =====
+            with ethnic_tab1:
+                st.subheader("Pathway analysis Main Fig  3A,B")
+                st.write("Ethnicity-Associated Functional Annotation of Metabolites, Lipids, Genes, and Proteins")
+                
+                st.markdown("---")
+                
+                # Use the direct image URL if the original link does not work
+                github_Fig = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig.3A.jpg"
+                st.image(github_Fig, caption="Metabolomics Pathways - Fig 3A", use_column_width=True)
+                st.write("A) Functional annotation of differentially abundant metabolomics and lipidomics data. Each row represents ethnic-related significantly altered metabolites and lipids. Functional annotations are shown in the right sides of the plots, using both in-house libraries and supported by literature references (see STAR Methods). Each circle represents pathway associated molecules' fold-change (color of dot) and significance (size of dot). For several lipid classes such as sphingolipids, phospholipids, and glycerolipids, sum of abundance levels of multiple species are shown. In fact, differential lipids species were called for across ethnic groups with down- and up-regulated molecules separately and then averaged (see Figure S3 for extended lipid patterns).  Up-regulated and down-regulated molecules for each contrast (i.e.EuAn/EA and SA/EA) are shown in red and blue respectively, with intensity determined by the log2 fold change. The size of each dot represents the molecule -log10(BH p-value)  where the larger the dot, the more significant the differential regulation. Only molecules with p-value < 0.01 and BH p-value < 0.2 are considered.Abbreviations: Cholesterol ester(CE), Sphingolipid (SM), Phosphatidylcholine (PC), Phosphatidylethanolamine (PE), Lysophosphatidylethanolamine (LPE), Lysophosphatidylcholine (LPC), Triacylglycerols (TAG), Diacylglycerols (DAG), Saturated Fatty Acid (SFA), Polyunsaturated fatty acid (PUFA), Monounsaturated fatty acid (MUFA), His-Ile (Histidine-Isoleucine). ")
+                github_Fig = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig.3B.jpg"
+                st.image(github_Fig, caption="Metabolomics Pathways - Fig 3A", use_column_width=True)
+                st.write("B) Pathway enrichments run for differentially abundant molecules. Enrichment analysis for the transcriptome and proteome (separately) were performed using String and ConsensusPathDB-human. Up/down regulated molecules were enriched separately. Each dot indicates an enrichment of a pathway for a particular omic; its size indicates the -log10 FDR of the enrichment (larger indicates a smaller adjusted p-value) and the color indicates the median log2 fold change (Log2FC)")
+
+                st.markdown("---")
+            
+            # ===== SUB-TAB 2: METABOLOMICS PATHWAYS (IMPROVED) =====
+            with ethnic_tab2:
+                st.subheader(" Metabolomics Pathways Interactive")
+                st.write("Plasma metabolite pathway analysis across ethnic groups")
+                
+                st.markdown("---")
+                
+                # Load pathway data
+                with st.spinner("Loading metabolomics pathway data..."):
+                    dataA, dataB, dataC, dataS, lipid_df, full_df = load_pathway_data()
+                
+                if full_df is not None and not full_df.empty:
+                    st.success(f"✅ Loaded {len(full_df)} pathway records")
+                    
+                    # ===== DATA PREVIEW SECTION (IMPROVED) =====
+                    with st.expander("🔍 View & Filter Pathway Data"):
+                        st.markdown("### Data Preview and Filtering")
+                        
+                        # Dataset info
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Total Records", len(full_df))
+                        with col2:
+                            st.metric("Unique Metabolites", full_df['name'].nunique() if 'name' in full_df.columns else 0)
+                        with col3:
+                            st.metric("Unique Pathways", full_df['Pathway.Name'].nunique() if 'Pathway.Name' in full_df.columns else 0)
+                        
+                        st.markdown("---")
+                        
+                        # Filtering options
+                        st.markdown("#### Filter Options")
+                        
+                        filter_col1, filter_col2 = st.columns(2)
+                        
+                        with filter_col1:
+                            # Filter by contrast
+                            if 'contrast' in full_df.columns:
+                                contrasts = ['All'] + sorted(full_df['contrast'].unique().tolist())
+                                selected_contrast = st.selectbox("Filter by Contrast:", contrasts)
+                                if selected_contrast != 'All':
+                                    filtered_df = full_df[full_df['contrast'] == selected_contrast]
+                                else:
+                                    filtered_df = full_df.copy()
+                            else:
+                                filtered_df = full_df.copy()
+                        
+                        with filter_col2:
+                            # Filter by pathway
+                            if 'Pathway.Name' in full_df.columns:
+                                pathways = ['All'] + sorted(full_df['Pathway.Name'].unique().tolist())
+                                selected_pathway = st.selectbox("Filter by Pathway:", pathways)
+                                if selected_pathway != 'All':
+                                    filtered_df = filtered_df[filtered_df['Pathway.Name'] == selected_pathway]
+                        
+                        st.markdown("---")
+                        
+                        # Number of rows to display
+                        n_rows = st.slider("Number of rows to display:", 10, 100, 20)
+                        
+                        # Display filtered data
+                        st.markdown(f"**Showing {min(n_rows, len(filtered_df))} of {len(filtered_df)} filtered records:**")
+                        st.dataframe(filtered_df.head(n_rows), use_container_width=True)
+                        
+                        # Column information
+                        if st.checkbox("Show column details"):
+                            st.markdown("**Column Information:**")
+                            col_info = pd.DataFrame({
+                                'Column': full_df.columns,
+                                'Type': full_df.dtypes,
+                                'Non-Null': full_df.count(),
+                                'Unique Values': full_df.nunique()
+                            })
+                            st.dataframe(col_info, use_container_width=True)
+                        
+                        # Download options
+                        st.markdown("---")
+                        st.markdown("#### Download Data")
+                        
+                        download_col1, download_col2 = st.columns(2)
+                        
+                        with download_col1:
+                            # Download full dataset
+                            csv_full = full_df.to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download Full Dataset (CSV)",
+                                data=csv_full,
+                                file_name="hpop_pathways_full.csv",
+                                mime="text/csv"
+                            )
+                        
+                        with download_col2:
+                            # Download filtered dataset
+                            csv_filtered = filtered_df.to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download Filtered Data (CSV)",
+                                data=csv_filtered,
+                                file_name="hpop_pathways_filtered.csv",
+                                mime="text/csv"
+                            )
+                    
+                    st.markdown("---")
+                    
+                    # ===== VISUALIZATION SECTION =====
+                    st.markdown("### Pathway Visualizations")
+                    
+                    # Visualization type selector
+                    viz_type = st.radio(
+                        "Select visualization type:",
+                        ["Interactive (Plotly)", "Static (Matplotlib)"],
+                        horizontal=True
+                    )
+                    
+                    st.markdown("---")
+                    
+                    # Category selection
+                    st.markdown("#### Select Pathway Category to Visualize")
+                    
+                    category_options = {
+                        "🔬 Amino Acids and Energy": dataA,
+                        "🧬 Nucleotides": dataB,
+                        "🦠 Microbiome-Derived Metabolites": dataC,
+                        "🧪 Bile and Sterol": dataS,
+                        "🫧 Lipid Metabolism": lipid_df
+                    }
+                    
+                    selected_category = st.selectbox(
+                        "Choose a metabolic category:",
+                        list(category_options.keys())
+                    )
+                    
+                    selected_data = category_options[selected_category]
+                    
+                    if selected_data is not None and not selected_data.empty:
+                        st.markdown(f'<p class="pathway-category">{selected_category}</p>', unsafe_allow_html=True)
+                        
+                        # Show category statistics
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Metabolites", selected_data['name'].nunique())
+                        with col2:
+                            st.metric("Pathways", selected_data['Pathway.Name'].nunique())
+                        with col3:
+                            st.metric("Comparisons", len(selected_data))
+                        
+                        st.markdown("---")
+                        
+                        # Generate visualization
+                        if viz_type == "Interactive (Plotly)":
+                            fig = plot_pathway_bubble_interactive(
+                                selected_data, 
+                                title=f"{selected_category} - Pathway Analysis"
+                            )
+                            if fig:
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.warning("Could not generate interactive plot")
+                        else:
+                            fig = plot_pathway_bubble(
+                                selected_data, 
+                                title=f"{selected_category} - Pathway Analysis"
+                            )
+                            if fig:
+                                st.pyplot(fig)
+                            else:
+                                st.warning("Could not generate static plot")
+                        
+                        # Show pathway list
+                        if st.checkbox("Show pathway names in this category"):
+                            pathways_in_category = selected_data['Pathway.Name'].unique()
+                            st.write(f"**Pathways ({len(pathways_in_category)}):**")
+                            for i, pathway in enumerate(sorted(pathways_in_category), 1):
+                                st.write(f"{i}. {pathway}")
+                    
+                    else:
+                        st.info("No data available for the selected category")
+                
+                else:
+                    st.error("Failed to load pathway data. Please check the GitHub URL and file format.")
+                    st.info("Ensure Table S3.xlsx exists in the repository with sheet: 3D_PathwayAnnotation_plasma")
+        
+# ===== TAB 3: Geography-Ethnicity ANALYSIS =====
+        with tab3:
+            st.markdown('<p class="tab-header">Geography</p>', unsafe_allow_html=True)
+            st.write("Geography-Ethnicity-related patterns and distributions")
+# Create sub-tabs
+            Geography_tab1, Geography_tab2 = st.tabs([
+                "📊 Ethnicity Geography Molecular Trajectory Fig  5",
+                " Ethnicity Geography Interactive"
+            ])
+            
+            # ===== SUB-TAB 1:  =====
+            with Geography_tab1:
+                st.subheader("Ethnicity Geography Molecular Trajectory Analysis Fig  5")
+                st.write("Cluster-Based Trajectory Analysis of Geography-Linked Biomolecular Signatures")
+                
+                st.markdown("---")
+                
+                # Figure 5A,B - Pattern Analysis
+                st.markdown("### Figure 5A,B: Pattern Analysis")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5AB_update.jpg"
+                st.image(github_pattern, caption="Pattern Analysis - Fig 5A,B", use_column_width=True)
+                st.write("**A)** Illustration of the average scaled abundance of molecules representing the pattern. Distribution of bio-molecular abundance (on a z-scale) across participants, categorized by their ethnicity and residential area along the x-axis, and the abundance of biomolecules along the y-axis. **B)** Composite biomolecular landscape within each Pattern, providing details on the distribution and proportion of six omics data (such as biocrates, lipidomics, glycome, proteomics, and transcriptomics) in each pattern.")
+                
+                st.markdown("---")
+                
+                # Figure 5C - Pathway Enrichment
+                st.markdown("### Figure 5C: Pathway Enrichment")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5C.jpg"
+                st.image(github_pattern, caption="Pathway Enrichment - Fig 5C", use_column_width=True)
+                st.write("Enrichment analysis conducted to pinpoint the biological functions and pathways associated with each Pattern. Notably, the analysis reveals distinct biological pathways in Pattern 3 and 4, determined primarily by metabolites/lipids as well as proteins and genes, with a color code representing the average abundance of all molecules related to the pathway.")
+                
+                st.markdown("---")
+                
+                # Figure 5D - Pattern Distribution
+                st.markdown("### Figure 5D: Pattern Distribution")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5D_Pettern.jpg"
+                st.image(github_pattern, caption="Pattern Distribution - Fig 5D", use_column_width=True)
+                st.write("Distribution of patterns across different ethnic groups and geographic locations, highlighting the relationships between biomolecular signatures, ethnicity, and residential areas.")
+
+                st.markdown("---")
+                
+                # Figure 5E - Ethnicity-Geography Interaction with Food Choice and Microbiome
+                st.markdown("### Figure 5E: Ethnicity-Geography Interaction with Food Choice and Microbiome Taxa")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5E.jpg"
+                st.image(github_pattern, caption="Network Topology - Fig 5E", use_column_width=True)
+                st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The **left panel** presents Pattern 3 and identifies genes/proteins that potentially contribute to **'Bile acid Biosynthesis'**. The **right panel** presents Pattern 4 and identifies metabolites/genes that potentially contribute to **'Autoimmune disease'**.")
+                
+                st.markdown("---")
+
+            # ===== SUB-TAB 2: Interactive Geography-Ethnicity Analysis =====
+            with Geography_tab2:
+                st.subheader("🌍 Ethnicity-Geography Interactive Analysis")
+                st.write("Explore interactive visualizations of geographic and ethnic distributions")
+                
+                # Summary metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    if 'Ehnicity' in data.columns:
+                        st.metric("Total Ethnicities", data['Ehnicity'].nunique())
+                with col2:
+                    if 'Conf_Site_Code' in data.columns:
+                        st.metric("Geographic Sites", data['Conf_Site_Code'].nunique())
+                with col3:
+                    st.metric("Total Participants", len(data))
+                with col4:
+                    if 'Age_Range' in data.columns:
+                        st.metric("Age Categories", data['Age_Range'].nunique())
+                
+                st.markdown("---")
+                
+                # Visualization selection
+                viz_option = st.selectbox(
+                    "Select Visualization Type:",
+                    [
+                        "Site by Ethnicity Distribution",
+                        "Ethnicity by Site (Grouped)",
+                        "Age Range by Site (Grouped)",
+                        "Multi-Dimensional Heatmap",
+                        "Combined Analysis Dashboard"
+                    ]
+                )
+                
+                st.markdown("---")
+                
+                if viz_option == "Site by Ethnicity Distribution":
+                    st.markdown("### 📊 Site Distribution by Ethnicity")
+                    st.write("Shows how different sites are distributed across ethnic groups")
+                    
+                    fig = plot_site_by_ethnicity(data)
+                    if fig:
+                        st.pyplot(fig)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    # Show breakdown table
+                    if st.checkbox("Show site-ethnicity breakdown table"):
+                        if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                            breakdown = pd.crosstab(
+                                data['Ehnicity'], 
+                                data['Conf_Site_Code'], 
+                                margins=True,
+                                margins_name="Total"
+                            )
+                            st.dataframe(breakdown, use_container_width=True)
+                            
+                            # Download button
+                            csv = breakdown.to_csv()
+                            st.download_button(
+                                "📥 Download Table (CSV)",
+                                csv,
+                                "site_ethnicity_breakdown.csv",
+                                "text/csv"
+                            )
+                
+                elif viz_option == "Ethnicity by Site (Grouped)":
+                    st.markdown("### 📊 Ethnicity Distribution by Geographic Site")
+                    st.write("Interactive grouped bar chart showing ethnicity distribution across sites")
+                    
+                    fig = plot_ethnicity_distribution_by_site(data)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    # Additional statistics
+                    if st.checkbox("Show detailed statistics"):
+                        if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                            st.markdown("#### Statistics by Site")
+                            for site in sorted(data['Conf_Site_Code'].unique()):
+                                site_data = data[data['Conf_Site_Code'] == site]
+                                with st.expander(f"📍 {site} - {len(site_data)} participants"):
+                                    eth_counts = site_data['Ehnicity'].value_counts()
+                                    st.write("**Ethnicity Distribution:**")
+                                    st.dataframe(eth_counts.to_frame(name='Count'))
+                
+                elif viz_option == "Age Range by Site (Grouped)":
+                    st.markdown("### 📊 Age Range Distribution by Geographic Site")
+                    st.write("Interactive visualization of age distributions across different sites")
+                    
+                    fig = plot_age_distribution_by_site(data)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    # Age statistics by site
+                    if st.checkbox("Show age statistics by site"):
+                        if 'Age_Range' in data.columns and 'Conf_Site_Code' in data.columns:
+                            st.markdown("#### Age Distribution Summary")
+                            summary_data = data.groupby(['Conf_Site_Code', 'Age_Range']).size().reset_index(name='Count')
+                            pivot_table = summary_data.pivot(index='Conf_Site_Code', columns='Age_Range', values='Count').fillna(0)
+                            st.dataframe(pivot_table, use_container_width=True)
+                
+                elif viz_option == "Multi-Dimensional Heatmap":
+                    st.markdown("### 🔥 Multi-Dimensional Heatmap: Ethnicity × Age × Site")
+                    st.write("Heatmap panels showing the intersection of ethnicity and age range for each geographic site")
+                    
+                    fig = plot_heatmap_ethnicity_age_site(data)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    st.markdown("---")
+                    st.info("💡 **Tip:** Hover over cells to see exact counts. Each panel represents a different geographic site.")
+                
+                elif viz_option == "Combined Analysis Dashboard":
+                    st.markdown("### 📈 Combined Geography-Ethnicity Dashboard")
+                    st.write("Comprehensive view of all geographic and ethnic distributions")
+                    
+                    # Row 1: Site by Ethnicity
+                    st.markdown("#### Geographic Distribution by Ethnicity")
+                    fig1 = plot_site_by_ethnicity(data)
+                    if fig1:
+                        st.pyplot(fig1)
+                    
+                    st.markdown("---")
+                    
+                    # Row 2: Two interactive plots side by side
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("#### Ethnicity by Site")
+                        fig2 = plot_ethnicity_distribution_by_site(data)
+                        if fig2:
+                            st.plotly_chart(fig2, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown("#### Age Range by Site")
+                        fig3 = plot_age_distribution_by_site(data)
+                        if fig3:
+                            st.plotly_chart(fig3, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Row 3: Comprehensive heatmap
+                    st.markdown("#### Multi-Dimensional Heatmap Analysis")
+                    fig4 = plot_heatmap_ethnicity_age_site(data)
+                    if fig4:
+                        st.plotly_chart(fig4, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Summary statistics
+                    if st.checkbox("Show comprehensive statistics"):
+                        st.markdown("#### Comprehensive Cross-Tabulation")
+                        if all(col in data.columns for col in ['Ehnicity', 'Conf_Site_Code', 'Age_Range']):
+                            detailed_table = data.groupby(['Conf_Site_Code', 'Ehnicity', 'Age_Range']).size().reset_index(name='Count')
+                            st.dataframe(detailed_table, use_container_width=True, height=400)
+                            
+                            # Download button
+                            csv = detailed_table.to_csv(index=False)
+                            st.download_button(
+                                "📥 Download Detailed Analysis (CSV)",
+                                csv,
+                                "geography_ethnicity_complete.csv",
+                                "text/csv"
+                            )
+                
+                st.markdown("---")
+                
+                # Additional exploration tools
+                with st.expander("🔍 Advanced Filtering & Exploration"):
+                    st.markdown("#### Filter Data by Geography and Ethnicity")
+                    
+                    filter_col1, filter_col2, filter_col3 = st.columns(3)
+                    
+                    with filter_col1:
+                        if 'Conf_Site_Code' in data.columns:
+                            sites = ['All'] + sorted(data['Conf_Site_Code'].unique().tolist())
+                            selected_site = st.multiselect("Select Site(s):", sites, default=['All'])
+                    
+                    with filter_col2:
+                        if 'Ehnicity' in data.columns:
+                            ethnicities = ['All'] + sorted(data['Ehnicity'].unique().tolist())
+                            selected_ethnicity = st.multiselect("Select Ethnicity(ies):", ethnicities, default=['All'])
+                    
+                    with filter_col3:
+                        if 'Age_Range' in data.columns:
+                            ages = ['All'] + sorted(data['Age_Range'].unique().tolist())
+                            selected_age = st.multiselect("Select Age Range(s):", ages, default=['All'])
+                    
+                    # Apply filters
+                    filtered_data = data.copy()
+                    if 'All' not in selected_site and 'Conf_Site_Code' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Conf_Site_Code'].isin(selected_site)]
+                    if 'All' not in selected_ethnicity and 'Ehnicity' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Ehnicity'].isin(selected_ethnicity)]
+                    if 'All' not in selected_age and 'Age_Range' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Age_Range'].isin(selected_age)]
+                    
+                    st.write(f"**Filtered Results:** {len(filtered_data)} participants (out of {len(data)} total)")
+                    
+                    if len(filtered_data) > 0:
+                        if st.checkbox("Show filtered data table"):
+                            display_cols = ['Finalcode', 'Ehnicity', 'Conf_Site_Code', 'Age_Range', 'Sex', 'bmi_category']
+                            display_cols = [col for col in display_cols if col in filtered_data.columns]
+                            st.dataframe(filtered_data[display_cols].head(100), use_container_width=True)
+                        
+                        # Download filtered data
+                        csv_filtered = filtered_data.to_csv(index=False)
+                        st.download_button(
+                            "📥 Download Filtered Data (CSV)",
+                            csv_filtered,
+                            "geography_ethnicity_filtered.csv",
+                            "text/csv"
+                        )
+
+
+        # ===== TAB 4: AGING ANALYSIS =====
+        with tab4:
+            st.markdown('<p class="tab-header">Aging Analysis</p>', unsafe_allow_html=True)
+            st.write("Age-related patterns and distributions")
+            
+            st.subheader("📊 PhenoAge Analysis")
+            st.info("PhenoAge analysis features will be displayed here when data is available")
+            
+            # Check for phenoage-related columns
+            phenoage_cols = [col for col in data.columns if 'pheno' in col.lower() or 'age' in col.lower()]
+            if phenoage_cols:
+                st.write("Available age-related columns:")
+                st.write(phenoage_cols)
+                
+                selected_age_col = st.selectbox("Select age variable", phenoage_cols)
+                
+                if selected_age_col:
+                    fig = plot_factor_distribution(data, selected_age_col)
+                    if fig:
+                        st.pyplot(fig)
+            
+            st.markdown("---")
+            
+            st.subheader("📊 Delta Age Analysis")
+            st.info("Delta Age analysis features will be displayed here when data is available")
+            
+            st.markdown("---")
+            st.subheader("Age Category Distribution")
+            fig = plot_age_by_site(data)
+            if fig:
+                st.pyplot(fig)
+    
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        st.info("Please check the GitHub URL and ensure the file is accessible.")
+
+
+if __name__ == '__main__':
+    main()
