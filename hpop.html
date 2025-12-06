@@ -1477,7 +1477,7 @@ def main():
                 st.markdown("---")
                 
                 # Figure 5A,B - Pattern Analysis
-                st.markdown("### Pattern Analysis")
+                st.markdown("### Figure 5A,B: Pattern Analysis")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5AB_update.jpg"
                 st.image(github_pattern, caption="Pattern Analysis - Fig 5A,B", use_column_width=True)
                 st.write("**A)** Illustration of the average scaled abundance of molecules representing the pattern. Distribution of bio-molecular abundance (on a z-scale) across participants, categorized by their ethnicity and residential area along the x-axis, and the abundance of biomolecules along the y-axis. **B)** Composite biomolecular landscape within each Pattern, providing details on the distribution and proportion of six omics data (such as biocrates, lipidomics, glycome, proteomics, and transcriptomics) in each pattern.")
@@ -1485,7 +1485,7 @@ def main():
                 st.markdown("---")
                 
                 # Figure 5C - Pathway Enrichment
-                st.markdown("### Pathway enrichment analysis of molecular features associated with selected Patterns")
+                st.markdown("### Figure 5C: Pathway Enrichment")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5C.jpg"
                 st.image(github_pattern, caption="Pathway Enrichment - Fig 5C", use_column_width=True)
                 st.write("Enrichment analysis conducted to pinpoint the biological functions and pathways associated with each Pattern. Notably, the analysis reveals distinct biological pathways in Pattern 3 and 4, determined primarily by metabolites/lipids as well as proteins and genes, with a color code representing the average abundance of all molecules related to the pathway.")
@@ -1493,11 +1493,19 @@ def main():
                 st.markdown("---")
                 
                 # Figure 5D - Pattern Distribution
-                st.markdown("### Pathway Network")
+                st.markdown("### Figure 5D: Pattern Distribution")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5D_Pettern.jpg"
                 st.image(github_pattern, caption="Pattern Distribution - Fig 5D", use_column_width=True)
-                st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The left panel presents Pattern 3 and identifies genes/proteins that potentially contribute to “Bile acid Biosynthesis”. The right panel presents pattern 4 and identifies metabolites/genes that potentially contribute to “Autoimmune disease”.")
+                st.write("Distribution of patterns across different ethnic groups and geographic locations, highlighting the relationships between biomolecular signatures, ethnicity, and residential areas.")
 
+                st.markdown("---")
+                
+                # Figure 5E - Ethnicity-Geography Interaction with Food Choice and Microbiome
+                st.markdown("### Figure 5E: Ethnicity-Geography Interaction with Food Choice and Microbiome Taxa")
+                github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5E.jpg"
+                st.image(github_pattern, caption="Network Topology - Fig 5E", use_column_width=True)
+                st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The **left panel** presents Pattern 3 and identifies genes/proteins that potentially contribute to **'Bile acid Biosynthesis'**. The **right panel** presents Pattern 4 and identifies metabolites/genes that potentially contribute to **'Autoimmune disease'**.")
+                
                 st.markdown("---")
 
             # ===== SUB-TAB 2: Interactive Geography-Ethnicity Analysis =====
@@ -1505,8 +1513,219 @@ def main():
                 st.subheader("🌍 Ethnicity-Geography Interactive Analysis")
                 st.write("Explore interactive visualizations of geographic and ethnic distributions")
                 
-          
-
+                # Summary metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    if 'Ehnicity' in data.columns:
+                        st.metric("Total Ethnicities", data['Ehnicity'].nunique())
+                with col2:
+                    if 'Conf_Site_Code' in data.columns:
+                        st.metric("Geographic Sites", data['Conf_Site_Code'].nunique())
+                with col3:
+                    st.metric("Total Participants", len(data))
+                with col4:
+                    if 'Age_Range' in data.columns:
+                        st.metric("Age Categories", data['Age_Range'].nunique())
+                
+                st.markdown("---")
+                
+                # Visualization selection
+                viz_option = st.selectbox(
+                    "Select Visualization Type:",
+                    [
+                        "Site by Ethnicity Distribution",
+                        "Ethnicity by Site (Grouped)",
+                        "Age Range by Site (Grouped)",
+                        "Multi-Dimensional Heatmap",
+                        "Combined Analysis Dashboard"
+                    ]
+                )
+                
+                st.markdown("---")
+                
+                if viz_option == "Site by Ethnicity Distribution":
+                    st.markdown("### 📊 Site Distribution by Ethnicity")
+                    st.write("Shows how different sites are distributed across ethnic groups")
+                    
+                    fig = plot_site_by_ethnicity(data)
+                    if fig:
+                        st.pyplot(fig)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    # Show breakdown table
+                    if st.checkbox("Show site-ethnicity breakdown table"):
+                        if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                            breakdown = pd.crosstab(
+                                data['Ehnicity'], 
+                                data['Conf_Site_Code'], 
+                                margins=True,
+                                margins_name="Total"
+                            )
+                            st.dataframe(breakdown, use_container_width=True)
+                            
+                            # Download button
+                            csv = breakdown.to_csv()
+                            st.download_button(
+                                "📥 Download Table (CSV)",
+                                csv,
+                                "site_ethnicity_breakdown.csv",
+                                "text/csv"
+                            )
+                
+                elif viz_option == "Ethnicity by Site (Grouped)":
+                    st.markdown("### 📊 Ethnicity Distribution by Geographic Site")
+                    st.write("Interactive grouped bar chart showing ethnicity distribution across sites")
+                    
+                    fig = plot_ethnicity_distribution_by_site(data)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    # Additional statistics
+                    if st.checkbox("Show detailed statistics"):
+                        if 'Ehnicity' in data.columns and 'Conf_Site_Code' in data.columns:
+                            st.markdown("#### Statistics by Site")
+                            for site in sorted(data['Conf_Site_Code'].unique()):
+                                site_data = data[data['Conf_Site_Code'] == site]
+                                with st.expander(f"📍 {site} - {len(site_data)} participants"):
+                                    eth_counts = site_data['Ehnicity'].value_counts()
+                                    st.write("**Ethnicity Distribution:**")
+                                    st.dataframe(eth_counts.to_frame(name='Count'))
+                
+                elif viz_option == "Age Range by Site (Grouped)":
+                    st.markdown("### 📊 Age Range Distribution by Geographic Site")
+                    st.write("Interactive visualization of age distributions across different sites")
+                    
+                    fig = plot_age_distribution_by_site(data)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    # Age statistics by site
+                    if st.checkbox("Show age statistics by site"):
+                        if 'Age_Range' in data.columns and 'Conf_Site_Code' in data.columns:
+                            st.markdown("#### Age Distribution Summary")
+                            summary_data = data.groupby(['Conf_Site_Code', 'Age_Range']).size().reset_index(name='Count')
+                            pivot_table = summary_data.pivot(index='Conf_Site_Code', columns='Age_Range', values='Count').fillna(0)
+                            st.dataframe(pivot_table, use_container_width=True)
+                
+                elif viz_option == "Multi-Dimensional Heatmap":
+                    st.markdown("### 🔥 Multi-Dimensional Heatmap: Ethnicity × Age × Site")
+                    st.write("Heatmap panels showing the intersection of ethnicity and age range for each geographic site")
+                    
+                    fig = plot_heatmap_ethnicity_age_site(data)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Unable to generate visualization. Check if required columns exist.")
+                    
+                    st.markdown("---")
+                    st.info("💡 **Tip:** Hover over cells to see exact counts. Each panel represents a different geographic site.")
+                
+                elif viz_option == "Combined Analysis Dashboard":
+                    st.markdown("### 📈 Combined Geography-Ethnicity Dashboard")
+                    st.write("Comprehensive view of all geographic and ethnic distributions")
+                    
+                    # Row 1: Site by Ethnicity
+                    st.markdown("#### Geographic Distribution by Ethnicity")
+                    fig1 = plot_site_by_ethnicity(data)
+                    if fig1:
+                        st.pyplot(fig1)
+                    
+                    st.markdown("---")
+                    
+                    # Row 2: Two interactive plots side by side
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("#### Ethnicity by Site")
+                        fig2 = plot_ethnicity_distribution_by_site(data)
+                        if fig2:
+                            st.plotly_chart(fig2, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown("#### Age Range by Site")
+                        fig3 = plot_age_distribution_by_site(data)
+                        if fig3:
+                            st.plotly_chart(fig3, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Row 3: Comprehensive heatmap
+                    st.markdown("#### Multi-Dimensional Heatmap Analysis")
+                    fig4 = plot_heatmap_ethnicity_age_site(data)
+                    if fig4:
+                        st.plotly_chart(fig4, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # Summary statistics
+                    if st.checkbox("Show comprehensive statistics"):
+                        st.markdown("#### Comprehensive Cross-Tabulation")
+                        if all(col in data.columns for col in ['Ehnicity', 'Conf_Site_Code', 'Age_Range']):
+                            detailed_table = data.groupby(['Conf_Site_Code', 'Ehnicity', 'Age_Range']).size().reset_index(name='Count')
+                            st.dataframe(detailed_table, use_container_width=True, height=400)
+                            
+                            # Download button
+                            csv = detailed_table.to_csv(index=False)
+                            st.download_button(
+                                "📥 Download Detailed Analysis (CSV)",
+                                csv,
+                                "geography_ethnicity_complete.csv",
+                                "text/csv"
+                            )
+                
+                st.markdown("---")
+                
+                # Additional exploration tools
+                with st.expander("🔍 Advanced Filtering & Exploration"):
+                    st.markdown("#### Filter Data by Geography and Ethnicity")
+                    
+                    filter_col1, filter_col2, filter_col3 = st.columns(3)
+                    
+                    with filter_col1:
+                        if 'Conf_Site_Code' in data.columns:
+                            sites = ['All'] + sorted(data['Conf_Site_Code'].unique().tolist())
+                            selected_site = st.multiselect("Select Site(s):", sites, default=['All'])
+                    
+                    with filter_col2:
+                        if 'Ehnicity' in data.columns:
+                            ethnicities = ['All'] + sorted(data['Ehnicity'].unique().tolist())
+                            selected_ethnicity = st.multiselect("Select Ethnicity(ies):", ethnicities, default=['All'])
+                    
+                    with filter_col3:
+                        if 'Age_Range' in data.columns:
+                            ages = ['All'] + sorted(data['Age_Range'].unique().tolist())
+                            selected_age = st.multiselect("Select Age Range(s):", ages, default=['All'])
+                    
+                    # Apply filters
+                    filtered_data = data.copy()
+                    if 'All' not in selected_site and 'Conf_Site_Code' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Conf_Site_Code'].isin(selected_site)]
+                    if 'All' not in selected_ethnicity and 'Ehnicity' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Ehnicity'].isin(selected_ethnicity)]
+                    if 'All' not in selected_age and 'Age_Range' in data.columns:
+                        filtered_data = filtered_data[filtered_data['Age_Range'].isin(selected_age)]
+                    
+                    st.write(f"**Filtered Results:** {len(filtered_data)} participants (out of {len(data)} total)")
+                    
+                    if len(filtered_data) > 0:
+                        if st.checkbox("Show filtered data table"):
+                            display_cols = ['Finalcode', 'Ehnicity', 'Conf_Site_Code', 'Age_Range', 'Sex', 'bmi_category']
+                            display_cols = [col for col in display_cols if col in filtered_data.columns]
+                            st.dataframe(filtered_data[display_cols].head(100), use_container_width=True)
+                        
+                        # Download filtered data
+                        csv_filtered = filtered_data.to_csv(index=False)
+                        st.download_button(
+                            "📥 Download Filtered Data (CSV)",
+                            csv_filtered,
+                            "geography_ethnicity_filtered.csv",
+                            "text/csv"
+                        )
 
 
         # ===== TAB 4: AGING ANALYSIS =====
