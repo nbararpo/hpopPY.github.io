@@ -1479,7 +1479,7 @@ def main():
                 # Figure 5A,B - Pattern Analysis
                 st.markdown("### Figure 5A,B: Pattern Analysis")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5AB_update.jpg"
-                st.image(github_pattern, caption="Pattern Analysis - Fig 5A,B", use_column_width=True)
+                st.image(github_pattern, caption="Pattern analysis and molecular Distribution - Fig 5A,B", use_column_width=True)
                 st.write("**A)** Illustration of the average scaled abundance of molecules representing the pattern. Distribution of bio-molecular abundance (on a z-scale) across participants, categorized by their ethnicity and residential area along the x-axis, and the abundance of biomolecules along the y-axis. **B)** Composite biomolecular landscape within each Pattern, providing details on the distribution and proportion of six omics data (such as biocrates, lipidomics, glycome, proteomics, and transcriptomics) in each pattern.")
                 
                 st.markdown("---")
@@ -1495,7 +1495,7 @@ def main():
                 # Figure 5D - Pattern Distribution
                 st.markdown("### Pattern Distribution")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5D_Pettern.jpg"
-                st.image(github_pattern, caption="Pattern Distribution - Fig 5D", use_column_width=True)
+                st.image(github_pattern, caption="Network Topology- Fig 5D", use_column_width=True)
                 st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The **left panel** presents Pattern 3 and identifies genes/proteins that potentially contribute to **'Bile acid Biosynthesis'**. The **right panel** presents Pattern 4 and identifies metabolites/genes that potentially contribute to **'Autoimmune disease'**.")
 
                 st.markdown("---")
@@ -1503,8 +1503,9 @@ def main():
                 # Figure 5E - Ethnicity-Geography Interaction with Food Choice and Microbiome
                 st.markdown("### Ethnicity-Geography Interaction with Food Choice and Microbiome Taxa")
                 github_pattern = "https://raw.githubusercontent.com/nbararpo/hpopPY.github.io/main/MainFig/Fig5E.jpg"
-                st.image(github_pattern, caption="Network Topology - Fig 5E", use_column_width=True)
-                st.write("Topology network of pathways and molecular features enriched in Ethnic-geography cluster-based trajectories. Biological functions with similar roles enriched by metabolites/lipids and genes/proteins were interconnected based on contributing molecular features to identify missing components of genes/proteins or metabolites/lipids. The **left panel** presents Pattern 3 and identifies genes/proteins that potentially contribute to **'Bile acid Biosynthesis'**. The **right panel** presents Pattern 4 and identifies metabolites/genes that potentially contribute to **'Autoimmune disease'**.")
+                st.image(github_pattern, caption=" Interaction between ethnicity/geography/food and microbiome Taxa - Fig 5E", use_column_width=True)
+                st.write("Interaction between genus, geography, and food intake is studied in ethnic groups separately. The X and Y axes represent the -log10 p-values of genus associations with geography and food, respectively. Color gradient defines the direction and effect size of geographic association (blue: negative; red: positive). The shape of each dot represents different genera. The top-right sector highlights genera that show significant associations with both geography and food intake, summarized alongside their corresponding traits. Association with food is estimated using the food intake frequency category from lifestyle survey, converted to estimated monthly intake frequency. In this model, EuAn participants living in the U.S. or Canada were compared with those residing in Europe, and EA participants living outside Asia were categorized as "elsewhere”.
+'**.")
                 
                 st.markdown("---")
 
