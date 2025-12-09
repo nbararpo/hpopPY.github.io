@@ -1212,6 +1212,7 @@ def main():
                     
                     elif viz_type == "Line Plot - Average Age Trends":
                         st.subheader("📈 Line Plot: Age Trends")
+                         st.write("Select PhenoAge and DeltaAge")
                         age_cols = [col for col in residential_data.columns if 'age' in col.lower()]
                         if not age_cols:
                             age_cols = residential_data.select_dtypes(include=[np.number]).columns.tolist()
